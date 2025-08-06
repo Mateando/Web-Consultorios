@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Doctor extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'license_number',
+        'education',
+        'years_experience',
+        'bio',
+        'schedule',
+        'consultation_fee',
+        'is_available',
+        'availability_schedule',
+        'phone',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'schedule' => 'array',
+            'consultation_fee' => 'decimal:2',
+            'is_available' => 'boolean',
+        ];
+    }
+
+    // Relaciones
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function specialties()
+    {
+        return $this->belongsToMany(Specialty::class);
+    }
+
+    // Mantener compatibility con código existente
+    public function specialty()
+    {
+        return $this->specialties()->first();
+    }
+
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class);
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->whereHas('user', function ($q) {
+            $q->where('is_active', true);
+        })->whereHas('specialties', function ($q) {
+            $q->where('is_active', true);
+        });
+    }
+
+    public function scopeWithSpecialty($query, $specialtyId)
+    {
+        return $query->whereHas('specialties', function ($q) use ($specialtyId) {
+            $q->where('specialties.id', $specialtyId);
+        });
+    }
+
+    public function scopeAvailable($query)
+    {
+        return $query->where('is_available', true);
+    }
+
+    // Accesorios
+    public function getFullNameAttribute()
+    {
+        return $this->user->name;
+    }
+}
