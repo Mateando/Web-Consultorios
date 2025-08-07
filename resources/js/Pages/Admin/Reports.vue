@@ -77,7 +77,12 @@
                                      class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                     <div>
                                         <div class="font-medium">{{ doctor.user?.name || 'N/A' }}</div>
-                                        <div class="text-sm text-gray-500">{{ doctor.specialty?.name || 'Sin especialidad' }}</div>
+                                        <div class="text-sm text-gray-500">
+                                            <span v-if="doctor.specialties && doctor.specialties.length > 0">
+                                                {{ doctor.specialties.map(s => s.name).join(', ') }}
+                                            </span>
+                                            <span v-else>Sin especialidad</span>
+                                        </div>
                                     </div>
                                     <span class="text-lg font-bold text-green-600">
                                         ${{ formatCurrency(doctor.appointments_sum_consultation_fee || 0) }}

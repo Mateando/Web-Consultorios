@@ -161,7 +161,7 @@ class AdminController extends Controller
             ->get();
         
         // Reporte de ingresos por doctor
-        $revenue_by_doctor = Doctor::with('user')
+        $revenue_by_doctor = Doctor::with(['user', 'specialties'])
             ->withSum(['appointments' => function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('appointment_date', [$startDate, $endDate])
                       ->where('status', 'completada');

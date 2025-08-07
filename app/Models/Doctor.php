@@ -58,6 +58,11 @@ class Doctor extends Model
         return $this->hasMany(MedicalRecord::class);
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(DoctorSchedule::class);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

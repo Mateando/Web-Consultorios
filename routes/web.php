@@ -6,6 +6,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\DoctorScheduleController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -51,6 +52,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Ruta para obtener doctores por especialidad
     Route::get('/api/doctors-by-specialty', [AppointmentController::class, 'getDoctorsBySpecialty'])->name('doctors.by-specialty');
+    
+    // Ruta para obtener slots disponibles de un doctor
+    Route::get('/api/appointments/available-slots', [AppointmentController::class, 'getAvailableTimeSlots'])->name('appointments.available-slots');
+    
+    // Ruta para obtener días disponibles por especialidad
+    Route::get('/api/specialty-available-days', [AppointmentController::class, 'getSpecialtyAvailableDays'])->name('specialty.available-days');
+    
+    // Ruta de debug temporal (SIN autenticación)
+    Route::get('/debug/specialty-days/{specialtyId}', function($specialtyId) {
+        $controller = new \App\Http\Controllers\AppointmentController();
+        $request = new \Illuminate\Http\Request();
+        $request->merge(['specialty_id' => $specialtyId]);
+        return $controller->getSpecialtyAvailableDays($request);
+    });
+    
+    // Ruta para que pacientes cancelen sus citas
+    Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+    
+    // Rutas para horarios de doctores (Admin y doctores)
+    Route::middleware('role:administrador|medico')->group(function () {
+        Route::resource('doctor-schedules', DoctorScheduleController::class)->except(['show', 'create', 'edit']);
+        Route::get('/api/doctor-schedules/available-slots', [DoctorScheduleController::class, 'getAvailableSlots'])->name('doctor-schedules.available-slots');
+    });
     
     // Rutas para pacientes (Solo admin, doctores y recepcionistas)
     Route::middleware('role:administrador|medico|recepcionista')->group(function () {

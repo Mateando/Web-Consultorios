@@ -26,9 +26,9 @@ class AppointmentController extends Controller
         $query = Appointment::with(['patient.user', 'doctor.user', 'specialty']);
         
         // Filtrar según el rol del usuario
-        if ($user->hasRole('doctor')) {
+        if ($user->hasRole('medico')) {
             $query->where('doctor_id', $user->doctor->id);
-        } elseif ($user->hasRole('patient')) {
+        } elseif ($user->hasRole('paciente')) {
             $query->where('patient_id', $user->patient->id);
         }
         // Admin o recepcionista pueden ver todas las citas (sin filtro adicional)
@@ -36,6 +36,10 @@ class AppointmentController extends Controller
         // Aplicar filtros de búsqueda
         if ($request->filled('doctor_id')) {
             $query->where('doctor_id', $request->doctor_id);
+        }
+
+        if ($request->filled('specialty_id')) {
+            $query->where('specialty_id', $request->specialty_id);
         }
 
         if ($request->filled('status')) {
@@ -85,12 +89,47 @@ class AppointmentController extends Controller
             'doctors' => $doctors,
             'patients' => $patients,
             'specialties' => $specialties,
-            'filters' => $request->only(['doctor_id', 'status', 'start_date', 'end_date']),
+            'filters' => $request->only(['doctor_id', 'specialty_id', 'status', 'start_date', 'end_date']),
+            'user_permissions' => [
+                'can_create_appointments' => $user->hasRole(['administrador', 'medico', 'recepcionista']),
+                'can_edit_appointments' => $user->hasRole(['administrador', 'medico', 'recepcionista']),
+                'can_delete_appointments' => $user->hasRole(['administrador', 'medico']),
+                'can_cancel_own_appointments' => $user->hasRole('paciente'),
+                'can_edit_own_appointments' => $user->hasRole('paciente'), // Pacientes pueden editar con restricciones
+                'is_patient' => $user->hasRole('paciente'),
+            ],
+        ]);
+    }
+
+    public function create()
+    {
+        $user = Auth::user();
+        
+        // Solo admin, doctores y recepcionistas pueden crear citas
+        if (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
+            abort(403, 'No tienes permisos para crear citas.');
+        }
+        
+        $doctors = Doctor::active()->with(['user', 'specialties'])->get();
+        $patients = Patient::active()->with('user')->get();
+        $specialties = Specialty::active()->get();
+        
+        return Inertia::render('Appointments/Create', [
+            'doctors' => $doctors,
+            'patients' => $patients,
+            'specialties' => $specialties,
         ]);
     }
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+        
+        // Solo admin, doctores y recepcionistas pueden crear citas
+        if (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
+            abort(403, 'No tienes permisos para crear citas.');
+        }
+        
         $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
@@ -127,6 +166,53 @@ class AppointmentController extends Controller
             }
         }
 
+        // NUEVA VALIDACIÓN: Verificar que la fecha y hora estén dentro del horario del doctor
+        $appointmentDate = Carbon::parse($request->appointment_date);
+        $dayOfWeek = strtolower($appointmentDate->format('l')); // monday, tuesday, etc.
+        $timeSlot = $appointmentDate->format('H:i');
+        
+        // Verificar que el doctor atienda ese día
+        $schedule = $doctor->schedules()
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->first();
+            
+        if (!$schedule) {
+            return redirect()->back()->withErrors([
+                'appointment_date' => "El doctor {$doctor->user->name} no atiende los " . $this->translateDayToSpanish($dayOfWeek) . "."
+            ]);
+        }
+        
+        // Verificar que la hora esté dentro del horario del doctor
+        $startTime = Carbon::parse($schedule->start_time)->format('H:i');
+        $endTime = Carbon::parse($schedule->end_time)->format('H:i');
+        
+        if ($timeSlot < $startTime || $timeSlot >= $endTime) {
+            return redirect()->back()->withErrors([
+                'appointment_date' => "La hora seleccionada ({$timeSlot}) está fuera del horario de atención del doctor ({$startTime} - {$endTime})."
+            ]);
+        }
+        
+        // Verificar que la hora sea un slot válido según la duración de citas del doctor
+        $availableSlots = $schedule->getAvailableTimeSlots();
+        if (!in_array($timeSlot, $availableSlots)) {
+            return redirect()->back()->withErrors([
+                'appointment_date' => "La hora seleccionada ({$timeSlot}) no corresponde a un horario de cita válido. Las citas son cada {$schedule->appointment_duration} minutos."
+            ]);
+        }
+        
+        // Verificar que no exista otra cita en el mismo horario
+        $existingAppointment = Appointment::where('doctor_id', $request->doctor_id)
+            ->where('appointment_date', $request->appointment_date)
+            ->whereNotIn('status', ['cancelada'])
+            ->first();
+            
+        if ($existingAppointment) {
+            return redirect()->back()->withErrors([
+                'appointment_date' => "Ya existe una cita programada para el doctor en este horario."
+            ]);
+        }
+
         $appointment = Appointment::create([
             'patient_id' => $request->patient_id,
             'doctor_id' => $request->doctor_id,
@@ -142,8 +228,121 @@ class AppointmentController extends Controller
         return redirect()->back()->with('success', 'Cita creada exitosamente.');
     }
 
+    public function show(Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        // Verificar permisos: admin/doctor/receptionist ven todas, pacientes solo las suyas
+        if ($user->hasRole('paciente')) {
+            if ($appointment->patient_id !== $user->patient->id) {
+                abort(403, 'No tienes permisos para ver esta cita.');
+            }
+        } elseif (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
+            abort(403, 'No tienes permisos para ver esta cita.');
+        }
+        
+        $appointment->load(['patient.user', 'doctor.user', 'specialty']);
+        
+        // Calcular si la cita puede ser editada por el paciente (más de 24 horas)
+        $canEditForPatient = false;
+        if ($user->hasRole('paciente')) {
+            $appointmentDate = Carbon::parse($appointment->appointment_date);
+            $now = Carbon::now();
+            $canEditForPatient = $now->diffInHours($appointmentDate) >= 24 && 
+                                !in_array($appointment->status, ['cancelada', 'completada']);
+        }
+        
+        return Inertia::render('Appointments/Show', [
+            'appointment' => $appointment,
+            'can_edit_for_patient' => $canEditForPatient,
+        ]);
+    }
+
+    public function edit(Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        // Verificar permisos
+        if ($user->hasRole('paciente')) {
+            // Los pacientes pueden editar sus citas solo si faltan más de 24 horas
+            if ($appointment->patient_id !== $user->patient->id) {
+                abort(403, 'No tienes permisos para editar esta cita.');
+            }
+            
+            $appointmentDate = Carbon::parse($appointment->appointment_date);
+            $now = Carbon::now();
+            
+            if ($now->diffInHours($appointmentDate) < 24) {
+                return redirect()->back()->with('error', 'Solo puedes editar citas con al menos 24 horas de anticipación.');
+            }
+            
+            if (in_array($appointment->status, ['cancelada', 'completada'])) {
+                return redirect()->back()->with('error', 'No puedes editar una cita cancelada o completada.');
+            }
+        } elseif (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
+            abort(403, 'No tienes permisos para editar citas.');
+        }
+        
+        $appointment->load(['patient.user', 'doctor.user', 'specialty']);
+        
+        // Para pacientes, solo mostrar opciones limitadas
+        if ($user->hasRole('paciente')) {
+            return Inertia::render('Appointments/PatientEdit', [
+                'appointment' => $appointment,
+            ]);
+        }
+        
+        // Para staff, vista completa de edición
+        $doctors = Doctor::active()->with(['user', 'specialties'])->get();
+        $patients = Patient::active()->with('user')->get();
+        $specialties = Specialty::active()->get();
+        
+        return Inertia::render('Appointments/Edit', [
+            'appointment' => $appointment,
+            'doctors' => $doctors,
+            'patients' => $patients,
+            'specialties' => $specialties,
+        ]);
+    }
+
     public function update(Request $request, Appointment $appointment)
     {
+        $user = Auth::user();
+        
+        // Verificar permisos
+        if ($user->hasRole('paciente')) {
+            // Los pacientes pueden actualizar sus citas solo si faltan más de 24 horas
+            if ($appointment->patient_id !== $user->patient->id) {
+                abort(403, 'No tienes permisos para editar esta cita.');
+            }
+            
+            $appointmentDate = Carbon::parse($appointment->appointment_date);
+            $now = Carbon::now();
+            
+            if ($now->diffInHours($appointmentDate) < 24) {
+                abort(403, 'Solo puedes editar citas con al menos 24 horas de anticipación.');
+            }
+            
+            if (in_array($appointment->status, ['cancelada', 'completada'])) {
+                abort(403, 'No puedes editar una cita cancelada o completada.');
+            }
+            
+            // Para pacientes, solo permitir cambio de estado
+            $request->validate([
+                'status' => 'required|in:confirmada,cancelada',
+            ]);
+            
+            $appointment->update([
+                'status' => $request->status,
+            ]);
+            
+            $statusText = $request->status === 'confirmada' ? 'confirmada' : 'cancelada';
+            return redirect()->route('appointments.index')->with('success', "Cita {$statusText} exitosamente.");
+        } elseif (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
+            abort(403, 'No tienes permisos para editar citas.');
+        }
+        
+        // Para staff, validación completa
         $request->validate([
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
@@ -196,33 +395,86 @@ class AppointmentController extends Controller
 
     public function destroy(Appointment $appointment)
     {
+        $user = Auth::user();
+        
+        // Solo admin y doctores pueden eliminar citas
+        if (!$user->hasRole(['administrador', 'medico'])) {
+            return redirect()->back()->withErrors(['error' => 'No tienes permisos para eliminar citas.']);
+        }
+        
         $appointment->delete();
         return redirect()->back()->with('success', 'Cita eliminada exitosamente.');
     }
 
     /**
-     * Obtener doctores por especialidad
+     * Cancelar cita para pacientes
+     */
+    public function cancel(Appointment $appointment)
+    {
+        $user = Auth::user();
+        
+        // Verificar que el usuario sea paciente y sea dueño de la cita
+        if (!$user->hasRole('paciente') || $appointment->patient_id !== $user->patient->id) {
+            return redirect()->back()->withErrors(['error' => 'No tienes permisos para cancelar esta cita.']);
+        }
+        
+        // Verificar que la cita sea con al menos 1 día de anticipación
+        $appointmentDate = Carbon::parse($appointment->appointment_date);
+        $now = Carbon::now();
+        
+        if ($now->diffInHours($appointmentDate) < 24) {
+            return redirect()->back()->withErrors(['error' => 'Solo puedes cancelar citas con al menos 24 horas de anticipación.']);
+        }
+        
+        // Verificar que la cita no esté ya cancelada
+        if ($appointment->status === 'cancelada') {
+            return redirect()->back()->withErrors(['error' => 'Esta cita ya está cancelada.']);
+        }
+        
+        // Cambiar estado a cancelada
+        $appointment->update(['status' => 'cancelada']);
+        
+        return redirect()->back()->with('success', 'Cita cancelada exitosamente.');
+    }
+
+    /**
+     * Obtener doctores por especialidad que atienden en una fecha específica
      */
     public function getDoctorsBySpecialty(Request $request)
     {
         $specialtyId = $request->query('specialty_id');
+        $date = $request->query('date');
+        
+        // Obtener el día de la semana de la fecha seleccionada
+        $dayOfWeek = null;
+        if ($date) {
+            $dayOfWeek = strtolower(Carbon::parse($date)->format('l')); // monday, tuesday, etc.
+        }
         
         if (!$specialtyId) {
-            $doctors = Doctor::with('user')->whereHas('user', function($query) {
-                $query->where('is_active', true);
-            })->get();
+            $query = Doctor::with(['user', 'specialties']);
         } else {
-            $doctors = Doctor::withSpecialty($specialtyId)
-                ->with(['user', 'specialties'])
-                ->whereHas('user', function($query) {
-                    $query->where('is_active', true);
-                })
-                ->get();
+            $query = Doctor::withSpecialty($specialtyId)->with(['user', 'specialties']);
+        }
+        
+        // Filtrar doctores activos
+        $query->whereHas('user', function($q) {
+            $q->where('is_active', true);
+        });
+        
+        // Si se proporciona una fecha, filtrar por doctores que atienden ese día
+        if ($dayOfWeek) {
+            $query->whereHas('schedules', function($q) use ($dayOfWeek) {
+                $q->where('day_of_week', $dayOfWeek)
+                  ->where('is_active', true);
+            });
         }
 
+        $doctors = $query->get();
+
         return response()->json([
-            'doctors' => $doctors->map(function ($doctor) {
-                return [
+            'doctors' => $doctors->map(function ($doctor) use ($date, $dayOfWeek) {
+                $doctorData = [
                     'id' => $doctor->id,
                     'name' => $doctor->user->name,
                     'consultation_fee' => $doctor->consultation_fee,
@@ -234,7 +486,88 @@ class AppointmentController extends Controller
                         ];
                     }),
                 ];
+                
+                // Si se proporciona fecha, incluir información de horario para ese día
+                if ($date && $dayOfWeek) {
+                    $schedule = $doctor->schedules()
+                        ->where('day_of_week', $dayOfWeek)
+                        ->where('is_active', true)
+                        ->first();
+                    
+                    if ($schedule) {
+                        $doctorData['schedule'] = [
+                            'start_time' => $schedule->start_time,
+                            'end_time' => $schedule->end_time,
+                            'appointment_duration' => $schedule->appointment_duration,
+                        ];
+                    }
+                }
+                
+                return $doctorData;
             }),
+        ]);
+    }
+
+    /**
+     * Obtener slots de tiempo disponibles para un doctor en una fecha específica
+     */
+    public function getAvailableTimeSlots(Request $request)
+    {
+        $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'date' => 'required|date|after_or_equal:today',
+            'editing_appointment_id' => 'nullable|exists:appointments,id',
+        ]);
+        
+        $doctor = Doctor::findOrFail($request->doctor_id);
+        $date = Carbon::parse($request->date);
+        $dayOfWeek = strtolower($date->format('l')); // monday, tuesday, etc.
+        
+        // Obtener horario del doctor para ese día
+        $schedule = $doctor->schedules()
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->first();
+            
+        if (!$schedule) {
+            return response()->json([
+                'slots' => [], 
+                'message' => 'Doctor no disponible este día',
+                'duration' => 0
+            ]);
+        }
+        
+        // Generar todos los slots posibles
+        $allSlots = $schedule->getAvailableTimeSlots();
+        
+        // Obtener citas ya programadas para esa fecha (excluyendo la cita que se está editando)
+        $query = $doctor->appointments()
+            ->whereDate('appointment_date', $request->date)
+            ->whereNotIn('status', ['cancelada']);
+            
+        // Si estamos editando una cita, excluirla de las citas ocupadas
+        if ($request->editing_appointment_id) {
+            $query->where('id', '!=', $request->editing_appointment_id);
+        }
+        
+        $bookedSlots = $query->get()
+            ->map(function ($appointment) {
+                return Carbon::parse($appointment->appointment_date)->format('H:i');
+            })
+            ->toArray();
+        
+        // Filtrar slots disponibles
+        $availableSlots = array_values(array_diff($allSlots, $bookedSlots));
+        
+        return response()->json([
+            'slots' => $availableSlots,
+            'duration' => $schedule->appointment_duration,
+            'doctor_name' => $doctor->user->name,
+            'schedule_info' => [
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+                'day' => $dayOfWeek
+            ]
         ]);
     }
 
@@ -249,5 +582,88 @@ class AppointmentController extends Controller
             'no_asistio' => '#9CA3AF', // Gris claro
             default => '#6B7280', // Gris por defecto
         };
+    }
+
+    private function translateDayToSpanish($dayOfWeek)
+    {
+        return match($dayOfWeek) {
+            'monday' => 'lunes',
+            'tuesday' => 'martes',
+            'wednesday' => 'miércoles',
+            'thursday' => 'jueves',
+            'friday' => 'viernes',
+            'saturday' => 'sábados',
+            'sunday' => 'domingos',
+            default => $dayOfWeek,
+        };
+    }
+
+    /**
+     * Obtener días disponibles para una especialidad específica
+     */
+    public function getSpecialtyAvailableDays(Request $request)
+    {
+        $specialtyId = $request->get('specialty_id');
+        
+        if (!$specialtyId) {
+            return response()->json([
+                'available_days' => [],
+                'message' => 'specialty_id es requerido'
+            ], 400);
+        }
+
+        try {
+            // Obtener todos los doctores de la especialidad con sus horarios
+            $doctors = Doctor::active()
+                ->whereHas('specialties', function ($query) use ($specialtyId) {
+                    $query->where('specialties.id', $specialtyId);
+                })
+                ->with(['schedules' => function ($query) {
+                    $query->where('is_active', true);
+                }])
+                ->get();
+
+            $availableDays = [];
+            
+            // Recopilar todos los días donde hay al menos un doctor disponible
+            foreach ($doctors as $doctor) {
+                foreach ($doctor->schedules as $schedule) {
+                    if (!in_array($schedule->day_of_week, $availableDays)) {
+                        $availableDays[] = $schedule->day_of_week;
+                    }
+                }
+            }
+
+            // Convertir nombres de días a números para JavaScript (0 = domingo, 1 = lunes, etc.)
+            $dayNumbers = [];
+            foreach ($availableDays as $day) {
+                $dayNumber = match($day) {
+                    'sunday' => 0,
+                    'monday' => 1,
+                    'tuesday' => 2,
+                    'wednesday' => 3,
+                    'thursday' => 4,
+                    'friday' => 5,
+                    'saturday' => 6,
+                    default => null,
+                };
+                
+                if ($dayNumber !== null) {
+                    $dayNumbers[] = $dayNumber;
+                }
+            }
+
+            return response()->json([
+                'available_days' => $dayNumbers,
+                'available_day_names' => $availableDays,
+                'doctors_count' => $doctors->count()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'available_days' => [],
+                'error' => 'Error al obtener días disponibles: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

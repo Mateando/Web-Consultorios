@@ -54,7 +54,7 @@ class AppointmentManager extends Component
 
     public function render()
     {
-        $query = Appointment::with(['patient.user', 'doctor.user', 'doctor.specialty']);
+        $query = Appointment::with(['patient.user', 'doctor.user', 'doctor.specialties']);
 
         // Aplicar filtros
         if ($this->filterDate) {
@@ -90,7 +90,7 @@ class AppointmentManager extends Component
         return view('livewire.appointment-manager', [
             'appointments' => $appointments,
             'patients' => Patient::with('user')->get(),
-            'doctors' => Doctor::with(['user', 'specialty'])->available()->get(),
+            'doctors' => Doctor::with(['user', 'specialties'])->available()->get(),
             'specialties' => Specialty::active()->get(),
             'availableDoctors' => $this->getAvailableDoctors(),
         ]);
@@ -192,8 +192,10 @@ class AppointmentManager extends Component
     private function getAvailableDoctors()
     {
         if ($this->specialty_id) {
-            return Doctor::with(['user', 'specialty'])
-                ->where('specialty_id', $this->specialty_id)
+            return Doctor::with(['user', 'specialties'])
+                ->whereHas('specialties', function ($q) {
+                    $q->where('specialties.id', $this->specialty_id);
+                })
                 ->available()
                 ->get();
         }

@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos para el calendario de citas */
+.fc-day-disabled {
+    background-color: #f9fafb !important;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        #e5e7eb 4px,
+        #e5e7eb 8px
+    ) !important;
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+}
+
+.fc-day-disabled:hover {
+    background-color: #f3f4f6 !important;
+}
+
+/* Asegurar que los días bloqueados sean claramente visibles */
+.fc-day-disabled .fc-daygrid-day-number {
+    color: #9ca3af !important;
+}

@@ -1,13 +1,23 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+const page = usePage();
+
+// Función para verificar si el usuario tiene alguno de los roles especificados
+const hasRole = (roles) => {
+    const user = page.props.auth.user;
+    if (!user || !user.roles) return false;
+    
+    const userRoles = user.roles.map(role => role.name);
+    return roles.some(role => userRoles.includes(role));
+};
 </script>
 
 <template>
@@ -49,7 +59,7 @@ const showingNavigationDropdown = ref(false);
 
                                 <!-- Enlaces para médicos, recepcionistas y administradores -->
                                 <NavLink
-                                    v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => ['administrador', 'medico', 'recepcionista'].includes(role.name)))"
+                                    v-if="hasRole(['administrador', 'medico', 'recepcionista'])"
                                     :href="route('patients.index')"
                                     :active="route().current('patients.*')"
                                 >
@@ -57,17 +67,27 @@ const showingNavigationDropdown = ref(false);
                                 </NavLink>
 
                                 <!-- Enlaces para recepcionistas y administradores -->
-                                <NavLink
-                                    v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => ['administrador', 'recepcionista'].includes(role.name)))"
-                                    :href="route('doctors.index')"
-                                    :active="route().current('doctors.*')"
-                                >
-                                    Doctores
-                                </NavLink>
+                                                <!-- Doctores (Admin y Recepcionistas) -->
+                <NavLink 
+                    v-if="hasRole(['administrador', 'recepcionista'])"
+                    :href="route('doctors.index')" 
+                    :active="route().current('doctors.*')"
+                >
+                    Doctores
+                </NavLink>
+
+                <!-- Horarios de Doctores (Admin y Doctores) -->
+                <NavLink 
+                    v-if="hasRole(['administrador', 'medico'])"
+                    :href="route('doctor-schedules.index')" 
+                    :active="route().current('doctor-schedules.*')"
+                >
+                    Horarios
+                </NavLink>
 
                                 <!-- Enlaces solo para administradores -->
                                 <NavLink
-                                    v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => role.name === 'administrador'))"
+                                    v-if="hasRole(['administrador'])"
                                     :href="route('admin.index')"
                                     :active="route().current('admin.*')"
                                 >
@@ -190,7 +210,7 @@ const showingNavigationDropdown = ref(false);
 
                         <!-- Enlaces para médicos, recepcionistas y administradores -->
                         <ResponsiveNavLink
-                            v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => ['administrador', 'medico', 'recepcionista'].includes(role.name)))"
+                            v-if="hasRole(['administrador', 'medico', 'recepcionista'])"
                             :href="route('patients.index')"
                             :active="route().current('patients.*')"
                         >
@@ -199,16 +219,25 @@ const showingNavigationDropdown = ref(false);
 
                         <!-- Enlaces para recepcionistas y administradores -->
                         <ResponsiveNavLink
-                            v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => ['administrador', 'recepcionista'].includes(role.name)))"
+                            v-if="hasRole(['administrador', 'recepcionista'])"
                             :href="route('doctors.index')"
                             :active="route().current('doctors.*')"
                         >
                             Doctores
                         </ResponsiveNavLink>
 
+                        <!-- Horarios de Doctores (Admin y Doctores) -->
+                        <ResponsiveNavLink
+                            v-if="hasRole(['administrador', 'medico'])"
+                            :href="route('doctor-schedules.index')"
+                            :active="route().current('doctor-schedules.*')"
+                        >
+                            Horarios
+                        </ResponsiveNavLink>
+
                         <!-- Enlaces solo para administradores -->
                         <ResponsiveNavLink
-                            v-if="$page.props.auth.user && ($page.props.auth.user.roles?.some(role => role.name === 'administrador'))"
+                            v-if="hasRole(['administrador'])"
                             :href="route('admin.index')"
                             :active="route().current('admin.*')"
                         >

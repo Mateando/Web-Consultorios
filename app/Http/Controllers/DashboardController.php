@@ -97,10 +97,10 @@ class DashboardController extends Controller
                 ->count(),
             'next_appointment' => Appointment::byPatient($patient->id)
                 ->upcoming()
-                ->with(['doctor.user', 'doctor.specialty'])
+                ->with(['doctor.user', 'doctor.specialties'])
                 ->first(),
             'recent_appointments' => Appointment::byPatient($patient->id)
-                ->with(['doctor.user', 'doctor.specialty'])
+                ->with(['doctor.user', 'doctor.specialties'])
                 ->latest()
                 ->take(5)
                 ->get(),

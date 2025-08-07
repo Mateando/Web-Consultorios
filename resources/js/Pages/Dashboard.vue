@@ -288,7 +288,11 @@ const getStatusColor = (status) => {
                                 <span class="font-medium">Doctor:</span> Dr. {{ stats.next_appointment.doctor.user.name }}
                             </p>
                             <p class="text-sm text-blue-800">
-                                <span class="font-medium">Especialidad:</span> {{ stats.next_appointment.doctor.specialty.name }}
+                                <span class="font-medium">Especialidad:</span> 
+                                <span v-if="stats.next_appointment.doctor.specialties && stats.next_appointment.doctor.specialties.length > 0">
+                                    {{ stats.next_appointment.doctor.specialties.map(s => s.name).join(', ') }}
+                                </span>
+                                <span v-else>Sin especialidad</span>
                             </p>
                             <p class="text-sm text-blue-800">
                                 <span class="font-medium">Fecha:</span> {{ new Date(stats.next_appointment.appointment_date).toLocaleString() }}
@@ -352,7 +356,10 @@ const getStatusColor = (status) => {
                                                     Dr. {{ appointment.doctor.user.name }}
                                                 </p>
                                                 <p class="text-sm text-gray-500 truncate">
-                                                    {{ appointment.doctor.specialty.name }}
+                                                    <span v-if="appointment.doctor.specialties && appointment.doctor.specialties.length > 0">
+                                                        {{ appointment.doctor.specialties.map(s => s.name).join(', ') }}
+                                                    </span>
+                                                    <span v-else>Sin especialidad</span>
                                                 </p>
                                             </div>
                                             <div class="flex items-center space-x-2">

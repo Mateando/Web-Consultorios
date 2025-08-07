@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Calendar } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -11,6 +11,18 @@ import interactionPlugin from '@fullcalendar/interaction'
 
 const props = defineProps({
     appointments: {
+        type: Array,
+        default: () => []
+    },
+    userPermissions: {
+        type: Object,
+        default: () => ({})
+    },
+    filteredSpecialtyId: {
+        type: [String, Number],
+        default: null
+    },
+    availableDays: {
         type: Array,
         default: () => []
     }
@@ -21,87 +33,82 @@ const emit = defineEmits(['event-click', 'date-click'])
 const calendarEl = ref(null)
 let calendar = null
 
+const isDateAvailable = (dateInfo) => {
+    if (!props.filteredSpecialtyId) {
+        return true
+    }
+    
+    const date = new Date(dateInfo.date || dateInfo.dateStr || dateInfo)
+    const dayOfWeek = date.getDay()
+    
+    return props.availableDays.includes(dayOfWeek)
+}
+
 const initCalendar = () => {
     if (calendarEl.value && !calendar) {
+        console.log('🗓️ Inicializando calendario con appointments:', props.appointments)
+        console.log('📊 Cantidad de appointments:', props.appointments?.length || 0)
+        
         calendar = new Calendar(calendarEl.value, {
             plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
             initialView: 'dayGridMonth',
             locale: 'es',
+            firstDay: 1,
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
             height: 'auto',
-            events: props.appointments,
-            eventClick: (info) => {
-                // Si el evento tiene appointment en extendedProps, usarlo
-                const appointment = info.event.extendedProps.appointment || info.event.extendedProps
-                emit('event-click', appointment)
-            },
+            events: props.appointments.map(appointment => {
+                // Si el appointment ya viene formateado desde el backend (con start, title, etc.)
+                if (appointment.start && appointment.title) {
+                    console.log('✅ Evento formateado:', appointment.title, 'en', appointment.start)
+                    return {
+                        id: appointment.id,
+                        title: appointment.title,
+                        start: appointment.start,
+                        end: appointment.end,
+                        color: appointment.backgroundColor || getAppointmentColor(appointment.extendedProps?.status),
+                        extendedProps: appointment.extendedProps || {}
+                    }
+                }
+                // Si viene en formato raw (para compatibilidad)
+                console.log('🔄 Evento raw:', appointment.patient_name, '-', appointment.doctor_name)
+                return {
+                    id: appointment.id,
+                    title: `${appointment.patient_name || 'Paciente'} - ${appointment.doctor_name || 'Doctor'}`,
+                    start: appointment.scheduled_at,
+                    color: getAppointmentColor(appointment.status),
+                    extendedProps: {
+                        status: appointment.status,
+                        patient_name: appointment.patient_name,
+                        doctor_name: appointment.doctor_name,
+                        specialty_name: appointment.specialty_name
+                    }
+                }
+            }),
             dateClick: (info) => {
+                if (!isDateAvailable(info)) {
+                    return false
+                }
+                if (!props.userPermissions?.can_create_appointments) {
+                    return false
+                }
                 emit('date-click', info.dateStr)
             },
-            eventDidMount: (info) => {
-                // Personalizar la apariencia del evento
-                const status = info.event.extendedProps.status
-                const element = info.el
-                
-                // Aplicar clases CSS según el estado
-                element.classList.add('cursor-pointer')
-                
-                switch (status) {
-                    case 'programada':
-                        element.style.backgroundColor = '#fbbf24'
-                        element.style.borderColor = '#f59e0b'
-                        break
-                    case 'confirmada':
-                        element.style.backgroundColor = '#3b82f6'
-                        element.style.borderColor = '#2563eb'
-                        break
-                    case 'en_curso':
-                        element.style.backgroundColor = '#f97316'
-                        element.style.borderColor = '#ea580c'
-                        break
-                    case 'completada':
-                        element.style.backgroundColor = '#10b981'
-                        element.style.borderColor = '#059669'
-                        break
-                    case 'cancelada':
-                        element.style.backgroundColor = '#ef4444'
-                        element.style.borderColor = '#dc2626'
-                        break
-                    case 'no_asistio':
-                        element.style.backgroundColor = '#6b7280'
-                        element.style.borderColor = '#4b5563'
-                        break
-                    default:
-                        element.style.backgroundColor = '#9ca3af'
-                        element.style.borderColor = '#6b7280'
+            eventClick: (info) => {
+                emit('event-click', {
+                    event: info.event,
+                    jsEvent: info.jsEvent,
+                    view: info.view
+                })
+            },
+            dayCellClassNames: (info) => {
+                if (!isDateAvailable(info)) {
+                    return ['blocked-day']
                 }
-                
-                // Agregar tooltip
-                element.title = `${info.event.title}\nEstado: ${getStatusText(status)}\nDoctor: ${info.event.extendedProps.doctor}\nPaciente: ${info.event.extendedProps.patient}`
-            },
-            businessHours: {
-                daysOfWeek: [1, 2, 3, 4, 5], // Lunes a viernes
-                startTime: '08:00',
-                endTime: '18:00',
-            },
-            slotMinTime: '07:00:00',
-            slotMaxTime: '20:00:00',
-            nowIndicator: true,
-            selectable: true,
-            selectMirror: true,
-            dayMaxEvents: true,
-            weekends: true,
-            buttonText: {
-                today: 'Hoy',
-                month: 'Mes',
-                week: 'Semana',
-                day: 'Día',
-                prev: 'Anterior',
-                next: 'Siguiente'
+                return []
             }
         })
         
@@ -109,124 +116,135 @@ const initCalendar = () => {
     }
 }
 
-const getStatusText = (status) => {
-    const texts = {
-        'programada': 'Programada',
-        'confirmada': 'Confirmada',
-        'en_curso': 'En Curso',
-        'completada': 'Completada',
-        'cancelada': 'Cancelada',
-        'no_asistio': 'No Asistió',
+// Función para asignar colores según el estado de la cita
+const getAppointmentColor = (status) => {
+    const colors = {
+        'programada': '#3b82f6',    // Azul
+        'confirmada': '#10b981',    // Verde
+        'en_curso': '#f59e0b',      // Amarillo
+        'completada': '#6b7280',    // Gris
+        'cancelada': '#ef4444'      // Rojo
     }
-    return texts[status] || status
+    return colors[status] || '#3b82f6'
 }
 
-// Actualizar eventos cuando cambien las props
-watch(() => props.appointments, (newAppointments) => {
+watch([() => props.filteredSpecialtyId, () => props.availableDays], () => {
     if (calendar) {
-        calendar.removeAllEvents()
-        calendar.addEventSource(newAppointments)
+        calendar.destroy()
+        calendar = null
+        setTimeout(() => {
+            initCalendar()
+            // Asegurar que las citas se muestren después de recrear el calendario
+            if (props.appointments.length > 0) {
+                setTimeout(() => {
+                    updateCalendarEvents()
+                }, 100)
+            }
+        }, 100)
     }
 }, { deep: true })
 
+// Función para actualizar eventos del calendario
+const updateCalendarEvents = () => {
+    if (calendar && props.appointments) {
+        calendar.removeAllEvents()
+        const events = props.appointments.map(appointment => {
+            // Si el appointment ya viene formateado desde el backend
+            if (appointment.start && appointment.title) {
+                return {
+                    id: appointment.id,
+                    title: appointment.title,
+                    start: appointment.start,
+                    end: appointment.end,
+                    color: appointment.backgroundColor || getAppointmentColor(appointment.extendedProps?.status),
+                    extendedProps: appointment.extendedProps || {}
+                }
+            }
+            // Si viene en formato raw (para compatibilidad)
+            return {
+                id: appointment.id,
+                title: `${appointment.patient_name || 'Paciente'} - ${appointment.doctor_name || 'Doctor'}`,
+                start: appointment.scheduled_at,
+                color: getAppointmentColor(appointment.status),
+                extendedProps: {
+                    status: appointment.status,
+                    patient_name: appointment.patient_name,
+                    doctor_name: appointment.doctor_name,
+                    specialty_name: appointment.specialty_name
+                }
+            }
+        })
+        calendar.addEventSource(events)
+    }
+}
+
+watch(() => props.appointments, (newAppointments) => {
+    updateCalendarEvents()
+}, { deep: true })
+
 onMounted(() => {
-    nextTick(() => {
-        initCalendar()
-    })
+    initCalendar()
 })
 </script>
 
 <style scoped>
-/* Estilos para FullCalendar */
-:deep(.fc) {
-    font-family: 'Inter', sans-serif;
+#calendar {
+    max-width: 100%;
 }
 
-:deep(.fc-button) {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
+:deep(.blocked-day) {
+    background: repeating-linear-gradient(
+        45deg,
+        #f8f9fa,
+        #f8f9fa 10px,
+        #e9ecef 10px,
+        #e9ecef 20px
+    ) !important;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
 }
 
-:deep(.fc-button:hover) {
-    background-color: #2563eb;
-    border-color: #2563eb;
-}
-
-:deep(.fc-button:disabled) {
-    background-color: #9ca3af;
-    border-color: #9ca3af;
-}
-
-:deep(.fc-today-button) {
-    background-color: #10b981;
-    border-color: #10b981;
-}
-
-:deep(.fc-today-button:hover) {
-    background-color: #059669;
-    border-color: #059669;
-}
-
-:deep(.fc-daygrid-day-top) {
-    justify-content: center;
-}
-
+/* Estilos para las citas */
 :deep(.fc-event) {
-    cursor: pointer;
     border-radius: 4px;
     font-size: 12px;
     padding: 2px 4px;
+    margin: 1px 0;
 }
 
-:deep(.fc-event:hover) {
-    opacity: 0.8;
-}
-
-:deep(.fc-day-today) {
-    background-color: rgba(59, 130, 246, 0.1) !important;
-}
-
-:deep(.fc-timegrid-slot) {
-    height: 3em;
-}
-
-:deep(.fc-timegrid-event) {
-    border-radius: 3px;
-    padding: 1px 3px;
-}
-
-:deep(.fc-header-toolbar) {
-    margin-bottom: 1.5em;
-    padding: 0 0.5em;
-}
-
-:deep(.fc-toolbar-title) {
-    font-size: 1.5em;
-    font-weight: 600;
-    color: #1f2937;
-}
-
-:deep(.fc-col-header-cell) {
-    background-color: #f9fafb;
-    border-color: #e5e7eb;
-    font-weight: 600;
-    color: #374151;
-}
-
-:deep(.fc-scrollgrid) {
-    border-color: #e5e7eb;
-}
-
-:deep(.fc-scrollgrid td) {
-    border-color: #e5e7eb;
-}
-
-:deep(.fc-daygrid-day-number) {
-    color: #374151;
+:deep(.fc-event-title) {
     font-weight: 500;
 }
 
-:deep(.fc-non-business) {
-    background-color: #f3f4f6;
+/* Estilos específicos por estado */
+:deep(.fc-event[style*="rgb(59, 130, 246)"]) {
+    /* Programada - Azul */
+    background-color: #3b82f6 !important;
+    border-color: #2563eb !important;
+}
+
+:deep(.fc-event[style*="rgb(16, 185, 129)"]) {
+    /* Confirmada - Verde */
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+}
+
+:deep(.fc-event[style*="rgb(245, 158, 11)"]) {
+    /* En curso - Amarillo */
+    background-color: #f59e0b !important;
+    border-color: #d97706 !important;
+    color: #1f2937 !important;
+}
+
+:deep(.fc-event[style*="rgb(107, 114, 128)"]) {
+    /* Completada - Gris */
+    background-color: #6b7280 !important;
+    border-color: #4b5563 !important;
+}
+
+:deep(.fc-event[style*="rgb(239, 68, 68)"]) {
+    /* Cancelada - Rojo */
+    background-color: #ef4444 !important;
+    border-color: #dc2626 !important;
 }
 </style>
