@@ -63,6 +63,12 @@ class Doctor extends Model
         return $this->hasMany(DoctorSchedule::class);
     }
 
+    // Obtener horarios para una especialidad específica
+    public function schedulesForSpecialty($specialtyId)
+    {
+        return $this->schedules()->where('specialty_id', $specialtyId);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

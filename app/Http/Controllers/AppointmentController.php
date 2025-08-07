@@ -452,20 +452,21 @@ class AppointmentController extends Controller
         }
         
         if (!$specialtyId) {
-            $query = Doctor::with(['user', 'specialties']);
-        } else {
-            $query = Doctor::withSpecialty($specialtyId)->with(['user', 'specialties']);
+            return response()->json(['doctors' => []]);
         }
+        
+        $query = Doctor::withSpecialty($specialtyId)->with(['user', 'specialties']);
         
         // Filtrar doctores activos
         $query->whereHas('user', function($q) {
             $q->where('is_active', true);
         });
         
-        // Si se proporciona una fecha, filtrar por doctores que atienden ese día
+        // Si se proporciona una fecha, filtrar por doctores que atienden ese día Y especialidad
         if ($dayOfWeek) {
-            $query->whereHas('schedules', function($q) use ($dayOfWeek) {
+            $query->whereHas('schedules', function($q) use ($dayOfWeek, $specialtyId) {
                 $q->where('day_of_week', $dayOfWeek)
+                  ->where('specialty_id', $specialtyId)
                   ->where('is_active', true);
             });
         }
@@ -473,24 +474,19 @@ class AppointmentController extends Controller
         $doctors = $query->get();
 
         return response()->json([
-            'doctors' => $doctors->map(function ($doctor) use ($date, $dayOfWeek) {
+            'doctors' => $doctors->map(function ($doctor) use ($date, $dayOfWeek, $specialtyId) {
                 $doctorData = [
                     'id' => $doctor->id,
                     'name' => $doctor->user->name,
                     'consultation_fee' => $doctor->consultation_fee,
-                    'license_number' => $doctor->license_number,
-                    'specialties' => $doctor->specialties->map(function ($specialty) {
-                        return [
-                            'id' => $specialty->id,
-                            'name' => $specialty->name,
-                        ];
-                    }),
+                    'specialties' => $doctor->specialties->pluck('name')->toArray(),
                 ];
-                
-                // Si se proporciona fecha, incluir información de horario para ese día
+
+                // Agregar información de disponibilidad si se proporciona fecha
                 if ($date && $dayOfWeek) {
                     $schedule = $doctor->schedules()
                         ->where('day_of_week', $dayOfWeek)
+                        ->where('specialty_id', $specialtyId)
                         ->where('is_active', true)
                         ->first();
                     
@@ -500,11 +496,35 @@ class AppointmentController extends Controller
                             'end_time' => $schedule->end_time,
                             'appointment_duration' => $schedule->appointment_duration,
                         ];
+                        
+                        // Obtener citas ya programadas para ese día y especialidad
+                        $bookedCount = $doctor->appointments()
+                            ->whereDate('appointment_date', $date)
+                            ->where('specialty_id', $specialtyId)
+                            ->whereNotIn('status', ['cancelada'])
+                            ->count();
+                        
+                        $totalSlots = count($schedule->getAvailableTimeSlots());
+                        $availableSlots = $totalSlots - $bookedCount;
+                        
+                        $doctorData['availability'] = [
+                            'total_slots' => $totalSlots,
+                            'booked_slots' => $bookedCount,
+                            'available_slots' => max(0, $availableSlots),
+                            'is_available' => $availableSlots > 0
+                        ];
+                    } else {
+                        $doctorData['availability'] = [
+                            'total_slots' => 0,
+                            'booked_slots' => 0,
+                            'available_slots' => 0,
+                            'is_available' => false
+                        ];
                     }
                 }
-                
+
                 return $doctorData;
-            }),
+            })->values()
         ]);
     }
 
@@ -515,6 +535,7 @@ class AppointmentController extends Controller
     {
         $request->validate([
             'doctor_id' => 'required|exists:doctors,id',
+            'specialty_id' => 'required|exists:specialties,id',
             'date' => 'required|date|after_or_equal:today',
             'editing_appointment_id' => 'nullable|exists:appointments,id',
         ]);
@@ -523,16 +544,26 @@ class AppointmentController extends Controller
         $date = Carbon::parse($request->date);
         $dayOfWeek = strtolower($date->format('l')); // monday, tuesday, etc.
         
-        // Obtener horario del doctor para ese día
+        // Validar que el doctor tenga la especialidad seleccionada
+        if (!$doctor->specialties->contains($request->specialty_id)) {
+            return response()->json([
+                'slots' => [], 
+                'message' => 'El doctor no atiende esta especialidad',
+                'duration' => 0
+            ]);
+        }
+        
+        // Obtener horario del doctor para ese día y especialidad específica
         $schedule = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
+            ->where('specialty_id', $request->specialty_id)
             ->where('is_active', true)
             ->first();
             
         if (!$schedule) {
             return response()->json([
                 'slots' => [], 
-                'message' => 'Doctor no disponible este día',
+                'message' => 'Doctor no disponible este día para esta especialidad',
                 'duration' => 0
             ]);
         }
@@ -540,9 +571,10 @@ class AppointmentController extends Controller
         // Generar todos los slots posibles
         $allSlots = $schedule->getAvailableTimeSlots();
         
-        // Obtener citas ya programadas para esa fecha (excluyendo la cita que se está editando)
+        // Obtener citas ya programadas para esa fecha y especialidad (excluyendo la cita que se está editando)
         $query = $doctor->appointments()
             ->whereDate('appointment_date', $request->date)
+            ->where('specialty_id', $request->specialty_id)
             ->whereNotIn('status', ['cancelada']);
             
         // Si estamos editando una cita, excluirla de las citas ocupadas
@@ -563,6 +595,7 @@ class AppointmentController extends Controller
             'slots' => $availableSlots,
             'duration' => $schedule->appointment_duration,
             'doctor_name' => $doctor->user->name,
+            'specialty_name' => $schedule->specialty->name,
             'schedule_info' => [
                 'start_time' => $schedule->start_time,
                 'end_time' => $schedule->end_time,

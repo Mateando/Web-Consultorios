@@ -2,11 +2,6 @@
   <Head title="Horarios de Doctores" />
 
   <AuthenticatedLayout>
-    <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Horarios de Doctores
-      </h2>
-    </template>
 
     <div class="py-12">
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -49,6 +44,9 @@
                       Doctor
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Especialidad
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Día
                     </th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -70,6 +68,11 @@
                     <td v-if="$page.props.auth.user.roles.some(role => role.name === 'administrador')" 
                         class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {{ schedule.doctor.user.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {{ schedule.specialty ? schedule.specialty.name : 'Sin especialidad' }}
+                      </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {{ daysOfWeek[schedule.day_of_week] }}
@@ -125,6 +128,7 @@
             <select v-model="form.doctor_id" 
                     id="doctor"
                     required
+                    @change="onDoctorChange"
                     class="w-full rounded-md border-gray-300 shadow-sm">
               <option value="">Seleccionar doctor</option>
               <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">
@@ -132,6 +136,26 @@
               </option>
             </select>
             <InputError :message="form.errors.doctor_id" />
+          </div>
+
+          <!-- Selector de especialidad -->
+          <div class="mb-4">
+            <label for="specialty" class="block text-sm font-medium text-gray-700 mb-1">
+              Especialidad *
+            </label>
+            <select v-model="form.specialty_id" 
+                    id="specialty"
+                    required
+                    class="w-full rounded-md border-gray-300 shadow-sm">
+              <option value="">Seleccionar especialidad</option>
+              <option v-for="specialty in availableSpecialties" :key="specialty.id" :value="specialty.id">
+                {{ specialty.name }}
+              </option>
+            </select>
+            <InputError :message="form.errors.specialty_id" />
+            <p v-if="!selectedDoctorForForm" class="text-xs text-gray-500 mt-1">
+              Primero seleccione un doctor para ver sus especialidades
+            </p>
           </div>
 
           <!-- Día de la semana -->
@@ -221,7 +245,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
@@ -233,6 +257,7 @@ import InputError from '@/Components/InputError.vue'
 const props = defineProps({
   schedules: Array,
   doctors: Array,
+  specialties: Array,
   days_of_week: Object,
 })
 
@@ -255,10 +280,11 @@ const filteredSchedules = computed(() => {
 // Formulario
 const form = useForm({
   doctor_id: '',
+  specialty_id: '',
   day_of_week: '',
   start_time: '',
   end_time: '',
-  appointment_duration: 15,
+  appointment_duration: 30,
   is_active: true,
 })
 
@@ -271,6 +297,30 @@ const userDoctor = computed(() => {
   return null
 })
 
+// Doctor seleccionado para el formulario
+const selectedDoctorForForm = computed(() => {
+  if (form.doctor_id) {
+    return props.doctors.find(doctor => doctor.id == form.doctor_id)
+  }
+  if (userDoctor.value) {
+    return userDoctor.value
+  }
+  return null
+})
+
+// Especialidades disponibles para el doctor seleccionado
+const availableSpecialties = computed(() => {
+  if (!selectedDoctorForForm.value) {
+    return []
+  }
+  return selectedDoctorForForm.value.specialties || []
+})
+
+// Watcher para resetear specialty_id cuando cambia el doctor
+watch(() => form.doctor_id, () => {
+  form.specialty_id = ''
+})
+
 // Métodos
 const filterByDoctor = () => {
   // Filtrado reactivo manejado por computed
@@ -280,9 +330,14 @@ const formatTime = (time) => {
   return time.substring(0, 5) // Remover segundos si existen
 }
 
+const onDoctorChange = () => {
+  form.specialty_id = '' // Reset specialty when doctor changes
+}
+
 const editSchedule = (schedule) => {
   editingSchedule.value = schedule
   form.doctor_id = schedule.doctor_id
+  form.specialty_id = schedule.specialty_id
   form.day_of_week = schedule.day_of_week
   form.start_time = formatTime(schedule.start_time)
   form.end_time = formatTime(schedule.end_time)
@@ -305,11 +360,15 @@ const submitForm = () => {
 
   if (showEditModal.value) {
     form.put(route('doctor-schedules.update', editingSchedule.value.id), {
-      onSuccess: () => closeModal()
+      onSuccess: () => {
+        closeModal()
+      }
     })
   } else {
     form.post(route('doctor-schedules.store'), {
-      onSuccess: () => closeModal()
+      onSuccess: () => {
+        closeModal()
+      }
     })
   }
 }
@@ -321,4 +380,11 @@ const closeModal = () => {
   form.reset()
   form.clearErrors()
 }
+
+// Inicializar doctor_id si es médico
+if (userDoctor.value) {
+  form.doctor_id = userDoctor.value.id
+}
 </script>
+
+

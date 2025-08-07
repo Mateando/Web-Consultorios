@@ -11,6 +11,7 @@ class DoctorSchedule extends Model
 
     protected $fillable = [
         'doctor_id',
+        'specialty_id',
         'day_of_week',
         'start_time',
         'end_time',
@@ -28,6 +29,12 @@ class DoctorSchedule extends Model
     public function doctor()
     {
         return $this->belongsTo(Doctor::class);
+    }
+
+    // Relación con Specialty
+    public function specialty()
+    {
+        return $this->belongsTo(Specialty::class);
     }
 
     // Scope para días activos
@@ -72,5 +79,69 @@ class DoctorSchedule extends Model
         }
 
         return $slots;
+    }
+
+    // Verificar si hay solapamiento de horarios para el mismo doctor
+    public static function hasScheduleConflict($doctorId, $dayOfWeek, $startTime, $endTime, $excludeId = null)
+    {
+        $query = self::where('doctor_id', $doctorId)
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->where(function ($q) use ($startTime, $endTime) {
+                // Verificar solapamiento: nuevo horario empieza antes de que termine el existente
+                // Y termina después de que empiece el existente
+                $q->where(function ($subQ) use ($startTime, $endTime) {
+                    $subQ->where('start_time', '<', $endTime)
+                         ->where('end_time', '>', $startTime);
+                });
+            });
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
+
+    // Verificar conflictos para una especialidad específica
+    public static function hasSpecialtyScheduleConflict($doctorId, $specialtyId, $dayOfWeek, $startTime, $endTime, $excludeId = null)
+    {
+        $query = self::where('doctor_id', $doctorId)
+            ->where('specialty_id', $specialtyId)
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->where(function ($q) use ($startTime, $endTime) {
+                $q->where(function ($subQ) use ($startTime, $endTime) {
+                    $subQ->where('start_time', '<', $endTime)
+                         ->where('end_time', '>', $startTime);
+                });
+            });
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
+
+    // Obtener horarios conflictivos
+    public static function getConflictingSchedules($doctorId, $dayOfWeek, $startTime, $endTime, $excludeId = null)
+    {
+        $query = self::with('specialty')
+            ->where('doctor_id', $doctorId)
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->where(function ($q) use ($startTime, $endTime) {
+                $q->where(function ($subQ) use ($startTime, $endTime) {
+                    $subQ->where('start_time', '<', $endTime)
+                         ->where('end_time', '>', $startTime);
+                });
+            });
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->get();
     }
 }

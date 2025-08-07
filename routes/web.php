@@ -74,6 +74,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:administrador|medico')->group(function () {
         Route::resource('doctor-schedules', DoctorScheduleController::class)->except(['show', 'create', 'edit']);
         Route::get('/api/doctor-schedules/available-slots', [DoctorScheduleController::class, 'getAvailableSlots'])->name('doctor-schedules.available-slots');
+        Route::get('/api/doctor-specialties', [DoctorScheduleController::class, 'getDoctorSpecialties'])->name('doctor.specialties');
+        
+        // Ruta para el componente Livewire de gestión de horarios
+        Route::get('/doctor-schedules-management', function () {
+            return view('doctor-schedules-management');
+        })->name('doctor-schedules.management');
     });
     
     // Rutas para pacientes (Solo admin, doctores y recepcionistas)

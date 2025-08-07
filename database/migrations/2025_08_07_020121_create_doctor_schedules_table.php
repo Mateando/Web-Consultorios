@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('doctor_schedules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('doctor_id')->constrained()->onDelete('cascade');
+            $table->foreignId('specialty_id')->constrained()->onDelete('cascade');
             $table->enum('day_of_week', ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
             $table->time('start_time');
             $table->time('end_time');
@@ -21,8 +22,12 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             
-            // Índice para búsquedas rápidas
+            // Índices para búsquedas rápidas
             $table->index(['doctor_id', 'day_of_week', 'is_active']);
+            $table->index(['doctor_id', 'specialty_id', 'day_of_week']);
+            
+            // Índice único para evitar duplicados
+            $table->unique(['doctor_id', 'specialty_id', 'day_of_week', 'start_time', 'end_time'], 'doctor_schedule_unique');
         });
     }
 
