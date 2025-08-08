@@ -29,15 +29,27 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $user->name = $request->input('name');
+        $user->email = $request->input('email');
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        // Manejar la carga de la foto de perfil
+        if ($request->hasFile('profile_photo')) {
+            $file = $request->file('profile_photo');
+            $path = $file->store('profile-photos', 'public');
+            $user->profile_photo_path = $path;
+        }
 
-        return Redirect::route('profile.edit');
+    $user->save();
+
+    // Refrescar los datos del usuario en la sesión para que Inertia los reciba actualizados
+    $request->session()->put('auth.user', $user->fresh());
+
+    return Redirect::route('profile.edit');
     }
 
     /**

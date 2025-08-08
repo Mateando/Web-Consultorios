@@ -23,7 +23,7 @@ const hasRole = (roles) => {
 <template>
     <div class="min-h-screen bg-gray-100 flex">
         <!-- Sidebar fijo en desktop -->
-        <aside class="hidden md:flex md:flex-col md:w-64 bg-white border-r border-gray-200 min-h-screen fixed z-50 left-0 top-0">
+        <aside class="hidden md:flex md:flex-col md:w-52 bg-white border-r border-gray-200 min-h-screen fixed z-50 left-0 top-0">
         <div class="flex items-center h-16 px-6 border-b border-gray-100">
             <Link :href="route('dashboard')">
                 <ApplicationLogo class="block h-9 w-auto fill-current text-gray-800" />
@@ -70,15 +70,19 @@ const hasRole = (roles) => {
         </aside>
 
         <!-- Contenido principal y barra superior para móvil -->
-    <div class="flex-1 flex flex-col min-h-screen md:ml-64">
+    <div class="flex-1 flex flex-col min-h-screen md:ml-52">
             <!-- Topbar: usuario a la derecha en desktop, menú hamburguesa en móvil -->
-            <nav class="flex items-center h-16 px-4 bg-white border-b border-gray-100 fixed z-50 top-0 left-0 right-0 md:ml-64">
+            <nav class="flex items-center h-16 px-4 bg-white border-b border-gray-100 fixed z-50 top-0 left-0 right-0 md:ml-52">
                 <!-- Usuario en desktop -->
                 <div class="hidden md:block absolute right-0">
                     <Dropdown align="right" width="48">
                         <template #trigger>
                             <span class="inline-flex rounded-md">
                                 <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none">
+                                    <img v-if="$page.props.auth.user.profile_photo_path" :src="'/storage/' + $page.props.auth.user.profile_photo_path" alt="Foto de perfil" class="h-8 w-8 rounded-full object-cover border mr-2" />
+                                    <span v-else class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 mr-2">
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </span>
                                     {{ $page.props.auth.user.name }}
                                     <svg class="-me-0.5 ms-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -111,8 +115,16 @@ const hasRole = (roles) => {
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="route().current('admin.*')">Administración</ResponsiveNavLink>
                     <div class="border-t border-gray-200 pt-4">
-                        <div class="text-base font-medium text-gray-800">{{ $page.props.auth.user.name }}</div>
-                        <div class="text-sm font-medium text-gray-500">{{ $page.props.auth.user.email }}</div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <img v-if="$page.props.auth.user.profile_photo_path" :src="'/storage/' + $page.props.auth.user.profile_photo_path" alt="Foto de perfil" class="h-10 w-10 rounded-full object-cover border" />
+                            <span v-else class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+                                <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </span>
+                            <div>
+                                <div class="text-base font-medium text-gray-800">{{ $page.props.auth.user.name }}</div>
+                                <div class="text-sm font-medium text-gray-500">{{ $page.props.auth.user.email }}</div>
+                            </div>
+                        </div>
                         <div class="mt-3 space-y-1">
                             <ResponsiveNavLink :href="route('profile.edit')">Perfil</ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('logout')" method="post" as="button">Cerrar sesión</ResponsiveNavLink>

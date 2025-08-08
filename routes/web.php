@@ -11,30 +11,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Ruta de prueba para verificar CSRF
-Route::get('/csrf-test', function () {
-    return response()->json([
-        'csrf_token' => csrf_token(),
-        'session_id' => session()->getId(),
-        'app_url' => config('app.url'),
-        'session_config' => [
-            'driver' => config('session.driver'),
-            'domain' => config('session.domain'),
-            'path' => config('session.path'),
-        ]
-    ]);
-})->name('csrf.test');
-
-// Página HTML para testing
-Route::get('/test-login', function () {
-    return view('csrf-test');
-})->name('test.login');
-
-// Página de login simple sin Inertia
-Route::get('/simple-login', function () {
-    return view('simple-login');
-})->name('simple.login');
-
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -45,6 +21,10 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // 2FA Google Authenticator
+    Route::get('/profile/2fa', [\App\Http\Controllers\TwoFactorController::class, 'showSetup'])->name('profile.2fa');
+    Route::post('/profile/2fa/enable', [\App\Http\Controllers\TwoFactorController::class, 'enable'])->name('profile.2fa.enable');
+    Route::post('/profile/2fa/disable', [\App\Http\Controllers\TwoFactorController::class, 'disable'])->name('profile.2fa.disable');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     // Rutas de citas - todos los usuarios autenticados pueden ver/gestionar citas
@@ -115,6 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rutas del perfil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile', [ProfileController::class, 'update']); // Para formularios con archivos
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

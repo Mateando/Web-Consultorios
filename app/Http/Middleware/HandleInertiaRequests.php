@@ -36,6 +36,8 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'profile_photo_path' => $request->user()->profile_photo_path,
+                    'google2fa_enabled' => (bool) $request->user()->google2fa_enabled,
                     'roles' => $request->user()->roles->map(function ($role) {
                         return [
                             'id' => $role->id,

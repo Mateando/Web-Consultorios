@@ -23,6 +23,7 @@ return new class extends Migration
             $table->enum('gender', ['masculino', 'femenino', 'otro'])->nullable();
             $table->string('identification_number')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->string('profile_photo_path')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

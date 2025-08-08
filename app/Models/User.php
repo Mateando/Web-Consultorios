@@ -29,7 +29,15 @@ class User extends Authenticatable
         'document_type',
         'document_number',
         'is_active',
+        'profile_photo_path',
+        'google2fa_secret',
+        'google2fa_enabled',
     ];
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return (bool) $this->google2fa_enabled && !empty($this->google2fa_secret);
+    }
 
     /**
      * The attributes that should be hidden for serialization.

@@ -19,7 +19,22 @@ const user = usePage().props.auth.user;
 const form = useForm({
     name: user.name,
     email: user.email,
+    profile_photo: null,
 });
+
+function submitForm() {
+    form.submit('post', route('profile.update'), {
+        data: {
+            name: form.name,
+            email: form.email,
+            profile_photo: form.profile_photo,
+            _method: 'PATCH',
+        },
+        preserveScroll: true,
+        onSuccess: () => form.reset('profile_photo'),
+        forceFormData: true,
+    });
+}
 </script>
 
 <template>
@@ -35,9 +50,27 @@ const form = useForm({
         </header>
 
         <form
-            @submit.prevent="form.patch(route('profile.update'))"
+            @submit.prevent="submitForm"
             class="mt-6 space-y-6"
+            enctype="multipart/form-data"
         >
+
+            <div class="flex items-center gap-4">
+                <div>
+                    <InputLabel for="profile_photo" value="Foto de perfil" />
+                    <input
+                        id="profile_photo"
+                        type="file"
+                        class="mt-1 block w-full"
+                        @change="e => form.profile_photo = e.target.files[0]"
+                        accept="image/*"
+                    />
+                    <InputError class="mt-2" :message="form.errors.profile_photo" />
+                </div>
+                <div v-if="user.profile_photo_path" class="ml-4">
+                    <img :src="'/storage/' + user.profile_photo_path" alt="Foto de perfil" class="h-16 w-16 rounded-full object-cover border" />
+                </div>
+            </div>
             <div>
                 <InputLabel for="name" value="Name" />
 
