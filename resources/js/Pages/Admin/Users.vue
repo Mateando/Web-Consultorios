@@ -84,20 +84,8 @@
                                             {{ formatDate(user.created_at) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button 
-                                                @click="editUserRoles(user)" 
-                                                class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                                Editar Roles
-                                            </button>
-                                            <button 
-                                                @click="toggleUserStatus(user)" 
-                                                :class="{
-                                                    'text-red-600 hover:text-red-900': user.is_active,
-                                                    'text-green-600 hover:text-green-900': !user.is_active
-                                                }"
-                                                :disabled="user.id === $page.props.auth.user.id">
-                                                {{ user.is_active ? 'Desactivar' : 'Activar' }}
-                                            </button>
+                                            <SecondaryButton type="button" @click="editUserRoles(user)" class="text-indigo-600 mr-3">Editar Roles</SecondaryButton>
+                                            <SecondaryButton type="button" @click="toggleUserStatus(user)" :class="user.is_active ? 'text-red-600' : 'text-green-600'" :disabled="user.id === $page.props.auth.user.id">{{ user.is_active ? 'Desactivar' : 'Activar' }}</SecondaryButton>
                                         </td>
                                     </tr>
                                     <tr v-if="!users?.data || users.data.length === 0">
@@ -192,6 +180,8 @@ import { router, Link } from '@inertiajs/vue3'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import Swal from 'sweetalert2'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
     users: Object,

@@ -553,23 +553,35 @@ class AppointmentController extends Controller
             ]);
         }
         
-        // Obtener horario del doctor para ese día y especialidad específica
-        $schedule = $doctor->schedules()
+        // Obtener todos los horarios del doctor para ese día y especialidad específica
+        $schedules = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
             ->where('specialty_id', $request->specialty_id)
             ->where('is_active', true)
-            ->first();
-            
-        if (!$schedule) {
+            ->get();
+
+        if ($schedules->isEmpty()) {
             return response()->json([
                 'slots' => [], 
                 'message' => 'Doctor no disponible este día para esta especialidad',
                 'duration' => 0
             ]);
         }
-        
-        // Generar todos los slots posibles
-        $allSlots = $schedule->getAvailableTimeSlots();
+
+        // Generar todos los slots posibles combinando cada horario activo
+        $allSlots = [];
+        $durations = [];
+        foreach ($schedules as $sch) {
+            $slotsForSchedule = $sch->getAvailableTimeSlots();
+            if (!empty($slotsForSchedule)) {
+                $allSlots = array_merge($allSlots, $slotsForSchedule);
+            }
+            $durations[] = $sch->appointment_duration ?? null;
+        }
+
+        // Normalizar: quitar duplicados y ordenar
+        $allSlots = array_values(array_unique($allSlots));
+        sort($allSlots);
         
         // Obtener citas ya programadas para esa fecha y especialidad (excluyendo la cita que se está editando)
         $query = $doctor->appointments()
@@ -591,14 +603,17 @@ class AppointmentController extends Controller
         // Filtrar slots disponibles
         $availableSlots = array_values(array_diff($allSlots, $bookedSlots));
         
+        // Usar el primer schedule como referencia para duration y meta info
+        $referenceSchedule = $schedules->first();
+
         return response()->json([
             'slots' => $availableSlots,
-            'duration' => $schedule->appointment_duration,
+            'duration' => $referenceSchedule->appointment_duration,
             'doctor_name' => $doctor->user->name,
-            'specialty_name' => $schedule->specialty->name,
+            'specialty_name' => $referenceSchedule->specialty->name,
             'schedule_info' => [
-                'start_time' => $schedule->start_time,
-                'end_time' => $schedule->end_time,
+                'start_time' => $referenceSchedule->start_time,
+                'end_time' => $referenceSchedule->end_time,
                 'day' => $dayOfWeek
             ]
         ]);

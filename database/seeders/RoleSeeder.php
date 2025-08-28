@@ -14,11 +14,11 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear roles
-        $adminRole = Role::create(['name' => 'administrador']);
-        $doctorRole = Role::create(['name' => 'medico']);
-        $patientRole = Role::create(['name' => 'paciente']);
-        $receptionistRole = Role::create(['name' => 'recepcionista']);
+    // Crear roles si no existen
+    $adminRole = Role::firstOrCreate(['name' => 'administrador']);
+    $doctorRole = Role::firstOrCreate(['name' => 'medico']);
+    $patientRole = Role::firstOrCreate(['name' => 'paciente']);
+    $receptionistRole = Role::firstOrCreate(['name' => 'recepcionista']);
 
         // Crear permisos
         $permissions = [
@@ -63,13 +63,13 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
         // Asignar permisos a roles
-        $adminRole->givePermissionTo($permissions); // Admin tiene todos los permisos
+    $adminRole->syncPermissions($permissions); // Admin tiene todos los permisos
 
-        $doctorRole->givePermissionTo([
+    $doctorRole->syncPermissions([
             'ver_pacientes',
             'ver_citas',
             'editar_citas',
@@ -80,7 +80,7 @@ class RoleSeeder extends Seeder
             'editar_doctor_perfil',
         ]);
 
-        $receptionistRole->givePermissionTo([
+    $receptionistRole->syncPermissions([
             'ver_pacientes',
             'crear_pacientes',
             'editar_pacientes',
@@ -92,7 +92,7 @@ class RoleSeeder extends Seeder
             'ver_doctores',
         ]);
 
-        $patientRole->givePermissionTo([
+    $patientRole->syncPermissions([
             'ver_citas',
             'crear_citas',
             'ver_historiales',

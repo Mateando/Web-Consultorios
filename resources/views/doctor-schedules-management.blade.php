@@ -29,7 +29,7 @@
                     <span class="text-gray-700">{{ auth()->user()->name }}</span>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="text-gray-500 hover:text-gray-700">
+                        <button type="submit" class="inline-flex items-center rounded-md border border-transparent bg-white px-2 py-1 text-sm font-medium text-gray-500 hover:text-gray-700">
                             <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </form>

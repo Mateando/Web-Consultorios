@@ -10,10 +10,8 @@
     <div class="bg-white p-6 rounded-lg shadow">
         <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h3 class="text-lg font-medium text-gray-900">Gestión de Citas</h3>
-            @can('crear_citas')
-                <button wire:click="openCreateForm" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                    Nueva Cita
-                </button>
+                @can('crear_citas')
+                <button wire:click="openCreateForm" class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Nueva Cita</button>
             @endcan
         </div>
 
@@ -98,33 +96,23 @@
                             <!-- Acciones -->
                             <div class="flex space-x-2">
                                 @can('editar_citas')
-                                    <button wire:click="openEditForm({{ $appointment->id }})" class="text-indigo-600 hover:text-indigo-900 text-sm">
-                                        Editar
-                                    </button>
+                                    <button wire:click="openEditForm({{ $appointment->id }})" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-indigo-600 hover:text-indigo-900">Editar</button>
                                 @endcan
 
                                 @if($appointment->status === 'programada' && Auth::user()->can('confirmar_citas'))
-                                    <button wire:click="updateStatus({{ $appointment->id }}, 'confirmada')" class="text-green-600 hover:text-green-900 text-sm">
-                                        Confirmar
-                                    </button>
+                                    <button wire:click="updateStatus({{ $appointment->id }}, 'confirmada')" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-green-600 hover:text-green-900">Confirmar</button>
                                 @endif
 
                                 @if($appointment->status === 'confirmada' && Auth::user()->hasRole('medico'))
-                                    <button wire:click="updateStatus({{ $appointment->id }}, 'completada')" class="text-blue-600 hover:text-blue-900 text-sm">
-                                        Completar
-                                    </button>
+                                    <button wire:click="updateStatus({{ $appointment->id }}, 'completada')" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-blue-600 hover:text-blue-900">Completar</button>
                                 @endif
 
                                 @if(in_array($appointment->status, ['programada', 'confirmada']) && Auth::user()->can('cancelar_citas'))
-                                    <button wire:click="updateStatus({{ $appointment->id }}, 'cancelada')" class="text-red-600 hover:text-red-900 text-sm">
-                                        Cancelar
-                                    </button>
+                                    <button wire:click="updateStatus({{ $appointment->id }}, 'cancelada')" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-red-600 hover:text-red-900">Cancelar</button>
                                 @endif
 
                                 @can('eliminar_citas')
-                                    <button wire:click="delete({{ $appointment->id }})" wire:confirm="¿Está seguro de que desea eliminar esta cita?" class="text-red-600 hover:text-red-900 text-sm">
-                                        Eliminar
-                                    </button>
+                                    <button wire:click="delete({{ $appointment->id }})" wire:confirm="¿Está seguro de que desea eliminar esta cita?" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-red-600 hover:text-red-900">Eliminar</button>
                                 @endcan
                             </div>
                         </div>
@@ -231,12 +219,8 @@
 
                         <!-- Botones -->
                         <div class="flex items-center justify-end space-x-3 pt-4">
-                            <button type="button" wire:click="closeCreateForm" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancelar
-                            </button>
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Crear Cita
-                            </button>
+                            <button type="button" wire:click="closeCreateForm" class="inline-flex items-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
+                            <button type="submit" class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Crear Cita</button>
                         </div>
                     </form>
                 </div>
@@ -334,12 +318,8 @@
 
                         <!-- Botones -->
                         <div class="flex items-center justify-end space-x-3 pt-4">
-                            <button type="button" wire:click="closeEditForm" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
-                                Cancelar
-                            </button>
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Actualizar Cita
-                            </button>
+                            <button type="button" wire:click="closeEditForm" class="inline-flex items-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
+                            <button type="submit" class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Actualizar Cita</button>
                         </div>
                     </form>
                 </div>

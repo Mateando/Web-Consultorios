@@ -4,7 +4,7 @@
         <div v-if="enabled" class="mb-4">
             <p class="text-green-600 font-semibold mb-2">2FA está activado en tu cuenta.</p>
             <form @submit.prevent="disable2fa">
-                <button class="bg-red-600 text-white px-4 py-2 rounded">Desactivar 2FA</button>
+                    <PrimaryButton type="submit" class="bg-red-600 hover:bg-red-700">Desactivar 2FA</PrimaryButton>
             </form>
         </div>
         <div v-else>
@@ -17,7 +17,7 @@
                 <label class="block mb-2">Código de 6 dígitos de la app:</label>
                 <input v-model="code" type="text" maxlength="6" class="border rounded px-2 py-1 mb-2 w-full" required />
                 <input type="hidden" :value="secret" name="secret" />
-                <button class="bg-green-600 text-white px-4 py-2 rounded">Activar 2FA</button>
+                    <PrimaryButton type="submit" class="bg-green-600 hover:bg-green-700">Activar 2FA</PrimaryButton>
             </form>
         </div>
         <div v-if="$page.props.flash.error" class="text-red-600 mt-2">{{ $page.props.flash.error }}</div>

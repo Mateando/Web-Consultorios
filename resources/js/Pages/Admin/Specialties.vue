@@ -10,11 +10,7 @@
                         <!-- Header con botón -->
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-lg font-semibold text-gray-900">Lista de Especialidades</h3>
-                            <button 
-                                @click="openCreateModal" 
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Nueva Especialidad
-                            </button>
+                            <PrimaryButton @click="openCreateModal" type="button">Nueva Especialidad</PrimaryButton>
                         </div>
 
                         <!-- Tabla de especialidades -->
@@ -61,20 +57,9 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button 
-                                                @click="editSpecialty(specialty)" 
-                                                class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                                Editar
-                                            </button>
-                                            <button 
-                                                @click="toggleSpecialtyStatus(specialty)" 
-                                                :class="{
-                                                    'text-red-600 hover:text-red-900': specialty.is_active,
-                                                    'text-green-600 hover:text-green-900': !specialty.is_active
-                                                }">
-                                                {{ specialty.is_active ? 'Desactivar' : 'Activar' }}
-                                            </button>
-                                        </td>
+                                                        <SecondaryButton type="button" @click="editSpecialty(specialty)" class="text-indigo-600 mr-3">Editar</SecondaryButton>
+                                                        <SecondaryButton type="button" @click="toggleSpecialtyStatus(specialty)" :class="specialty.is_active ? 'text-red-600' : 'text-green-600'">{{ specialty.is_active ? 'Desactivar' : 'Activar' }}</SecondaryButton>
+                                                    </td>
                                     </tr>
                                     <tr v-if="!specialties?.data || specialties.data.length === 0">
                                         <td colspan="5" class="px-6 py-4 text-center text-gray-500">
@@ -143,19 +128,8 @@
                         </div>
                         
                         <div class="flex justify-end space-x-3">
-                            <button
-                                type="button"
-                                @click="closeModal"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                {{ selectedSpecialty ? 'Actualizar' : 'Crear' }}
-                            </button>
+                            <SecondaryButton type="button" @click="closeModal">Cancelar</SecondaryButton>
+                            <PrimaryButton type="submit">{{ selectedSpecialty ? 'Actualizar' : 'Crear' }}</PrimaryButton>
                         </div>
                     </form>
                 </div>
@@ -169,6 +143,8 @@ import { ref, reactive } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 import Swal from 'sweetalert2'
 
 const props = defineProps({

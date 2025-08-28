@@ -33,12 +33,7 @@
                                 />
                             </div>
                             <div class="flex items-end">
-                                <button
-                                    type="submit"
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    Filtrar
-                                </button>
+                                <PrimaryButton type="submit">Filtrar</PrimaryButton>
                             </div>
                         </form>
                     </div>
@@ -128,6 +123,7 @@ import { reactive, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
 
 const props = defineProps({
     appointments_by_status: Array,

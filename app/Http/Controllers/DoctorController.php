@@ -20,13 +20,26 @@ class DoctorController extends Controller
             abort(403, 'No tienes permisos para ver esta página');
         }
         
-        $doctors = Doctor::with(['user', 'specialties', 'appointments.patient.user'])
-            ->paginate(10);
-        
+        $search = trim($request->get('search', ''));
+
+        $doctors = Doctor::query()
+            ->select('doctors.*')
+            ->with(['user', 'specialties', 'appointments.patient.user'])
+            ->leftJoin('users', 'users.id', '=', 'doctors.user_id')
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('users.name', 'like', "%{$search}%")
+                       ->orWhere('users.email', 'like', "%{$search}%");
+                });
+            })
+            ->orderByRaw('LOWER(users.name)')
+            ->paginate(6)
+            ->withQueryString();
+
         return Inertia::render('Doctors/Index', [
             'doctors' => $doctors,
             'specialties' => Specialty::where('is_active', true)->get(),
-            'filters' => request()->only(['search'])
+            'filters' => ['search' => $search]
         ]);
     }
 

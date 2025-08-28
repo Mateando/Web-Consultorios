@@ -6,8 +6,7 @@
                 <h2 class="text-xl font-semibold text-gray-800">
                     Gestión de Horarios de Doctores
                 </h2>
-                <button wire:click="openForm" 
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <button wire:click="openForm" class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                     <i class="fas fa-plus mr-2"></i>Nuevo Horario
                 </button>
             </div>
@@ -18,7 +17,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filtrar por Doctor</label>
-                    <select wire:model.live="doctorId" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select wire:model="doctorId" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos los doctores</option>
                         @foreach($doctors as $doctor)
                             <option value="{{ $doctor->id }}">{{ $doctor->user->name }}</option>
@@ -79,19 +78,13 @@
                                         {{ $schedule->appointment_duration }} min
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <button wire:click="toggleStatus({{ $schedule->id }})" 
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $schedule->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ $schedule->is_active ? 'Activo' : 'Inactivo' }}
-                                        </button>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $schedule->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">{{ $schedule->is_active ? 'Activo' : 'Inactivo' }}</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button wire:click="editSchedule({{ $schedule->id }})" 
-                                                class="text-blue-600 hover:text-blue-900 mr-3">
+                                        <button wire:click="editSchedule({{ $schedule->id }})" class="inline-flex items-center rounded-md border border-transparent bg-white px-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-900 mr-3">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button wire:click="deleteSchedule({{ $schedule->id }})" 
-                                                class="text-red-600 hover:text-red-900"
-                                                onclick="return confirm('¿Está seguro de eliminar este horario?')">
+                                        <button wire:click="deleteSchedule({{ $schedule->id }})" class="inline-flex items-center rounded-md border border-transparent bg-white px-2 py-1 text-sm font-medium text-red-600 hover:text-red-900" onclick="return confirm('¿Está seguro de eliminar este horario?')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -152,8 +145,8 @@
                                         class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 @error('specialtyId') border-red-500 @enderror"
                                         {{ !$selectedDoctor ? 'disabled' : '' }}>
                                     <option value="">Seleccione una especialidad</option>
-                                    @if($selectedDoctor)
-                                        @foreach($selectedDoctor->specialties as $specialty)
+                                    @if(isset($specialtiesForDoctor) && $specialtiesForDoctor->count() > 0)
+                                        @foreach($specialtiesForDoctor as $specialty)
                                             <option value="{{ $specialty->id }}">{{ $specialty->name }}</option>
                                         @endforeach
                                     @endif
@@ -220,14 +213,8 @@
 
                         <!-- Botones del formulario -->
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeForm" 
-                                    class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition duration-200">
-                                Cancelar
-                            </button>
-                            <button type="submit" 
-                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
-                                {{ $editingScheduleId ? 'Actualizar' : 'Guardar' }}
-                            </button>
+                            <button type="button" wire:click="closeForm" class="inline-flex items-center rounded-md border border-transparent bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
+                            <button type="submit" class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">{{ $editingScheduleId ? 'Actualizar' : 'Guardar' }}</button>
                         </div>
                     </form>
                 </div>

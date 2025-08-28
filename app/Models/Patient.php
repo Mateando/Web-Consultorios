@@ -11,6 +11,7 @@ class Patient extends Model
 
     protected $fillable = [
         'user_id',
+    'patient_type',
         'emergency_contact_name',
         'emergency_contact_phone',
         'insurance_provider',
@@ -21,6 +22,8 @@ class Patient extends Model
         'blood_type',
         'height',
         'weight',
+    'observations',
+    'extra_observations',
     ];
 
     protected function casts(): array

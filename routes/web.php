@@ -64,10 +64,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Rutas para pacientes (Solo admin, doctores y recepcionistas)
     Route::middleware('role:administrador|medico|recepcionista')->group(function () {
-        Route::resource('patients', PatientController::class);
-        // Ruta para activar/desactivar paciente
-        Route::patch('patients/{patient}/toggle-status', [PatientController::class, 'toggleStatus'])
-            ->name('patients.toggle-status');
+    // Usar el controlador para la ruta principal de pacientes
+    Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
+    // Ruta para activar/desactivar paciente
+    Route::patch('patients/{patient}/toggle-status', [PatientController::class, 'toggleStatus'])
+        ->name('patients.toggle-status');
     });
     
     // Rutas para doctores (Solo admin y recepcionistas)
@@ -90,6 +91,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/admin/specialties/{specialty}/toggle-status', [AdminController::class, 'toggleSpecialtyStatus'])->name('admin.specialties.toggleStatus');
         Route::delete('/admin/specialties/{specialty}', [AdminController::class, 'destroySpecialty'])->name('admin.specialties.destroy');
         Route::get('/admin/reports', [AdminController::class, 'reports'])->name('admin.reports');
+
+    // Clínica - configuración general
+    Route::get('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'edit'])->name('admin.config.clinic');
+    Route::post('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'update'])->name('admin.config.clinic.update');
+
+    // Configuración catálogos
+    Route::get('/admin/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'patientTypes'])->name('admin.config.patient-types');
+    Route::post('/admin/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'storePatientType'])->name('admin.config.patient-types.store');
+    Route::put('/admin/config/patient-types/{patientType}', [\App\Http\Controllers\AdminConfigController::class,'updatePatientType'])->name('admin.config.patient-types.update');
+    Route::patch('/admin/config/patient-types/{patientType}/toggle', [\App\Http\Controllers\AdminConfigController::class,'togglePatientType'])->name('admin.config.patient-types.toggle');
+
+    Route::get('/admin/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'insuranceProviders'])->name('admin.config.insurance-providers');
+    Route::post('/admin/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'storeInsuranceProvider'])->name('admin.config.insurance-providers.store');
+    Route::put('/admin/config/insurance-providers/{insuranceProvider}', [\App\Http\Controllers\AdminConfigController::class,'updateInsuranceProvider'])->name('admin.config.insurance-providers.update');
+    Route::patch('/admin/config/insurance-providers/{insuranceProvider}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleInsuranceProvider'])->name('admin.config.insurance-providers.toggle');
+
+    Route::get('/admin/config/countries', [\App\Http\Controllers\AdminConfigController::class,'countries'])->name('admin.config.countries');
+    Route::post('/admin/config/countries', [\App\Http\Controllers\AdminConfigController::class,'storeCountry'])->name('admin.config.countries.store');
+    Route::put('/admin/config/countries/{country}', [\App\Http\Controllers\AdminConfigController::class,'updateCountry'])->name('admin.config.countries.update');
+    Route::patch('/admin/config/countries/{country}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleCountry'])->name('admin.config.countries.toggle');
+
+    Route::get('/admin/config/countries/{country}/provinces', [\App\Http\Controllers\AdminConfigController::class,'provinces'])->name('admin.config.provinces');
+    Route::post('/admin/config/countries/{country}/provinces', [\App\Http\Controllers\AdminConfigController::class,'storeProvince'])->name('admin.config.provinces.store');
+    Route::put('/admin/config/provinces/{province}', [\App\Http\Controllers\AdminConfigController::class,'updateProvince'])->name('admin.config.provinces.update');
+    Route::patch('/admin/config/provinces/{province}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleProvince'])->name('admin.config.provinces.toggle');
+
+    Route::get('/admin/config/provinces/{province}/cities', [\App\Http\Controllers\AdminConfigController::class,'cities'])->name('admin.config.cities');
+    Route::post('/admin/config/provinces/{province}/cities', [\App\Http\Controllers\AdminConfigController::class,'storeCity'])->name('admin.config.cities.store');
+    Route::put('/admin/config/cities/{city}', [\App\Http\Controllers\AdminConfigController::class,'updateCity'])->name('admin.config.cities.update');
+    Route::patch('/admin/config/cities/{city}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleCity'])->name('admin.config.cities.toggle');
+
+    // API selects dependientes
+    Route::get('/api/config/countries', [\App\Http\Controllers\AdminConfigController::class,'apiCountries'])->name('api.config.countries');
+    Route::get('/api/config/countries/{country}/provinces', [\App\Http\Controllers\AdminConfigController::class,'apiProvinces'])->name('api.config.provinces');
+    Route::get('/api/config/provinces/{province}/cities', [\App\Http\Controllers\AdminConfigController::class,'apiCities'])->name('api.config.cities');
+    Route::get('/api/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'apiPatientTypes'])->name('api.config.patient-types');
+    Route::get('/api/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'apiInsuranceProviders'])->name('api.config.insurance-providers');
     });
     
     // Rutas del perfil

@@ -13,30 +13,41 @@ use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            // Obtener pacientes con paginación
-            $patientsQuery = Patient::with(['user'])
-                ->whereHas('user', function ($query) {
-                    $query->orderBy('name');
-                })
-                ->paginate(10);
+            $search = trim($request->get('search',''));
 
-            Log::info('PatientController@index', [
-                'patients_count' => $patientsQuery->count(),
-                'patients_total' => $patientsQuery->total(),
-                'user_id' => auth()->id(),
-                'user_roles' => auth()->user()->getRoleNames(),
-                'first_patient' => $patientsQuery->first() ? $patientsQuery->first()->user->name : 'No patients'
+            $patients = Patient::query()
+                ->select('patients.*')
+                ->with('user')
+                ->leftJoin('users','users.id','=','patients.user_id')
+                ->when($search !== '', function($q) use ($search){
+                    $q->where(function($qq) use ($search){
+                        $qq->where('users.name','like',"%{$search}%")
+                           ->orWhere('users.email','like',"%{$search}%")
+                           ->orWhere('users.document_number','like',"%{$search}%");
+                    });
+                })
+                ->orderByRaw('LOWER(users.name)')
+                ->paginate(6)
+                ->withQueryString();
+
+            $first = $patients->first();
+            Log::info('PatientController@index (Inertia)', [
+                'search' => $search,
+                'patients_page_count' => $patients->count(),
+                'patients_total' => $patients->total(),
+                'auth_user_id' => auth()->id(),
+                'first_patient' => $first && $first->user ? $first->user->name : null
             ]);
 
             return Inertia::render('Patients/Index', [
-                'patients' => $patientsQuery,
-                'filters' => request()->only(['search'])
+                'patients' => $patients,
+                'filters' => ['search' => $search]
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in PatientController@index', [
+            Log::error('Error in PatientController@index (Inertia)', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -55,12 +66,18 @@ class PatientController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'secondary_email' => 'nullable|email',
             'document_type' => 'required|in:cedula,pasaporte,tarjeta_identidad,registro_civil',
             'document_number' => 'required|string|unique:users,document_number',
             'phone' => 'nullable|string|max:20',
+            'landline_phone' => 'nullable|string|max:20',
             'birth_date' => 'required|date',
             'gender' => 'required|in:masculino,femenino,otro',
             'address' => 'nullable|string|max:500',
+            'city' => 'nullable|string|max:100',
+            'province' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
+            'patient_type' => 'nullable|string|max:100',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'insurance_provider' => 'nullable|string|max:255',
@@ -71,15 +88,22 @@ class PatientController extends Controller
             'blood_type' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-',
             'height' => 'nullable|numeric|min:50|max:250',
             'weight' => 'nullable|numeric|min:10|max:300',
+            'observations' => 'nullable|string',
+            'extra_observations' => 'nullable|string',
         ]);
 
         // Crear usuario
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'secondary_email' => $request->secondary_email,
             'password' => Hash::make('password123'),
             'phone' => $request->phone,
+            'landline_phone' => $request->landline_phone,
             'address' => $request->address,
+            'city' => $request->city,
+            'province' => $request->province,
+            'country' => $request->country,
             'birth_date' => $request->birth_date,
             'gender' => $request->gender,
             'document_type' => $request->document_type,
@@ -93,6 +117,7 @@ class PatientController extends Controller
         // Crear paciente
         Patient::create([
             'user_id' => $user->id,
+            'patient_type' => $request->patient_type,
             'emergency_contact_name' => $request->emergency_contact_name,
             'emergency_contact_phone' => $request->emergency_contact_phone,
             'insurance_provider' => $request->insurance_provider,
@@ -103,6 +128,8 @@ class PatientController extends Controller
             'blood_type' => $request->blood_type,
             'height' => $request->height,
             'weight' => $request->weight,
+            'observations' => $request->observations,
+            'extra_observations' => $request->extra_observations,
         ]);
 
         return redirect()->back()->with('success', 'Paciente creado exitosamente');
@@ -110,11 +137,8 @@ class PatientController extends Controller
 
     public function show(Patient $patient)
     {
-        $patient->load('user', 'appointments.doctor.user');
-        
-        return Inertia::render('Patients/Show', [
-            'patient' => $patient
-        ]);
+    // Por ahora redirigimos al listado Livewire; se puede crear una vista detallada Livewire.
+    return redirect()->route('patients.index');
     }
 
     public function edit(Patient $patient)
@@ -128,12 +152,18 @@ class PatientController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', Rule::unique('users')->ignore($patient->user->id)],
+            'secondary_email' => ['nullable','email', Rule::unique('users','secondary_email')->ignore($patient->user->id)],
             'document_type' => 'required|in:cedula,pasaporte,tarjeta_identidad,registro_civil',
             'document_number' => ['required', 'string', Rule::unique('users')->ignore($patient->user->id)],
             'phone' => 'nullable|string|max:20',
+            'landline_phone' => 'nullable|string|max:20',
             'birth_date' => 'required|date',
             'gender' => 'required|in:masculino,femenino,otro',
             'address' => 'nullable|string|max:500',
+            'city' => 'nullable|string|max:100',
+            'province' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
+            'patient_type' => 'nullable|string|max:100',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:20',
             'insurance_provider' => 'nullable|string|max:255',
@@ -144,14 +174,21 @@ class PatientController extends Controller
             'blood_type' => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-',
             'height' => 'nullable|numeric|min:50|max:250',
             'weight' => 'nullable|numeric|min:10|max:300',
+            'observations' => 'nullable|string',
+            'extra_observations' => 'nullable|string',
         ]);
 
         // Actualizar usuario
         $patient->user->update([
             'name' => $request->name,
             'email' => $request->email,
+            'secondary_email' => $request->secondary_email,
             'phone' => $request->phone,
+            'landline_phone' => $request->landline_phone,
             'address' => $request->address,
+            'city' => $request->city,
+            'province' => $request->province,
+            'country' => $request->country,
             'birth_date' => $request->birth_date,
             'gender' => $request->gender,
             'document_type' => $request->document_type,
@@ -160,6 +197,7 @@ class PatientController extends Controller
 
         // Actualizar paciente
         $patient->update([
+            'patient_type' => $request->patient_type,
             'emergency_contact_name' => $request->emergency_contact_name,
             'emergency_contact_phone' => $request->emergency_contact_phone,
             'insurance_provider' => $request->insurance_provider,
@@ -170,6 +208,8 @@ class PatientController extends Controller
             'blood_type' => $request->blood_type,
             'height' => $request->height,
             'weight' => $request->weight,
+            'observations' => $request->observations,
+            'extra_observations' => $request->extra_observations,
         ]);
 
         return redirect()->back()->with('success', 'Paciente actualizado exitosamente');

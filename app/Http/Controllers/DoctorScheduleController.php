@@ -11,24 +11,61 @@ use Inertia\Inertia;
 
 class DoctorScheduleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // Solo admin y doctores pueden gestionar horarios
         if (!$user->hasRole(['administrador', 'medico'])) {
             abort(403, 'No tienes permisos para ver esta página');
         }
-        
+
+        $search = trim($request->get('search', ''));
+        $filterDoctorId = $request->get('doctor_id', '');
+
         // Si es doctor, solo puede ver/editar sus propios horarios
         if ($user->hasRole('medico')) {
             $doctor = $user->doctor;
-            $schedules = $doctor->schedules()->with('specialty')->orderBy('day_of_week')->get();
             $doctors = collect([$doctor]);
+
+            $query = $doctor->schedules()->with('specialty')->orderBy('day_of_week');
+
+            // Aplicar filtros locales si existen
+            if ($search !== '') {
+                // Search by doctor name makes less sense for a single doctor, but we keep behavior for consistency
+                // Only include schedules when doctor's name matches search
+                if (stripos($doctor->user->name, $search) === false) {
+                    $query->whereRaw('0 = 1'); // return empty
+                }
+            }
+            if ($filterDoctorId) {
+                // if doctor tries to filter to another doctor, return empty
+                if ($filterDoctorId != $doctor->id) {
+                    $query->whereRaw('0 = 1');
+                }
+            }
+
+            $schedules = $query->get();
         } else {
             // Admin puede ver todos los doctores
             $doctors = Doctor::with(['user', 'schedules', 'specialties'])->get();
-            $schedules = DoctorSchedule::with(['doctor.user', 'specialty'])->orderBy('doctor_id')->orderBy('day_of_week')->get();
+
+            $query = DoctorSchedule::query()
+                ->select('doctor_schedules.*')
+                ->with(['doctor.user', 'specialty'])
+                ->leftJoin('doctors', 'doctors.id', '=', 'doctor_schedules.doctor_id')
+                ->leftJoin('users', 'users.id', '=', 'doctors.user_id')
+                ->orderByRaw('LOWER(users.name)')
+                ->orderBy('doctor_schedules.day_of_week');
+
+            if ($search !== '') {
+                $query->where('users.name', 'like', "%{$search}%");
+            }
+            if ($filterDoctorId) {
+                $query->where('doctors.id', $filterDoctorId);
+            }
+
+            $schedules = $query->paginate(6)->withQueryString();
         }
         
         // Obtener todas las especialidades activas
@@ -38,6 +75,7 @@ class DoctorScheduleController extends Controller
             'schedules' => $schedules,
             'doctors' => $doctors,
             'specialties' => $specialties,
+            'filters' => ['search' => $search, 'doctor_id' => $filterDoctorId],
             'days_of_week' => [
                 'monday' => 'Lunes',
                 'tuesday' => 'Martes',
@@ -72,10 +110,11 @@ class DoctorScheduleController extends Controller
             abort(403, 'No puedes editar horarios de otros doctores');
         }
         
-        // Validar que el doctor tenga la especialidad seleccionada
+        // Validar que el doctor exista y tenga la especialidad seleccionada
         $doctor = Doctor::with('specialties')->find($request->doctor_id);
-        if (!$doctor->specialties->contains($request->specialty_id)) {
-            return redirect()->back()->withErrors(['specialty_id' => 'El doctor no tiene asignada esta especialidad.']);
+    // Nota: contains($id) en una colección de modelos no verifica por clave primaria, hay que usar contains('id', $id)
+    if (!$doctor || !$doctor->specialties || !$doctor->specialties->contains('id', $request->specialty_id)) {
+            return redirect()->back()->withErrors(['specialty_id' => 'El doctor no tiene asignada esta especialidad o no existe.']);
         }
         
         // Verificar conflictos de horario
@@ -95,7 +134,8 @@ class DoctorScheduleController extends Controller
             );
 
             $conflicts = $conflictingSchedules->map(function($schedule) {
-                return $schedule->specialty->name . ' (' . $schedule->start_time . ' - ' . $schedule->end_time . ')';
+                $specName = optional($schedule->specialty)->name ?? 'Sin especialidad';
+                return $specName . ' (' . $schedule->start_time . ' - ' . $schedule->end_time . ')';
             })->implode(', ');
 
             return redirect()->back()->withErrors(['start_time' => "El horario se solapa con: {$conflicts}"]);
@@ -106,7 +146,7 @@ class DoctorScheduleController extends Controller
         return redirect()->back()->with('success', 'Horario creado exitosamente');
     }
 
-    public function update(Request $request, DoctorSchedule $schedule)
+    public function update(Request $request, $schedule)
     {
         $user = Auth::user();
         
@@ -114,8 +154,15 @@ class DoctorScheduleController extends Controller
             abort(403, 'No tienes permisos para realizar esta acción');
         }
         
+        // Buscar manualmente el schedule (parece que el route-model binding no está resolviendo)
+        $scheduleModel = DoctorSchedule::find($schedule);
+        if (!$scheduleModel) {
+            \Illuminate\Support\Facades\Log::warning('DoctorScheduleController.update - schedule not found', ['schedule_param' => $schedule]);
+            return redirect()->back()->withErrors(['schedule' => 'Horario no encontrado.']);
+        }
+
         // Si es doctor, verificar que solo edite sus propios horarios
-        if ($user->hasRole('medico') && $user->doctor->id != $schedule->doctor_id) {
+        if ($user->hasRole('medico') && $user->doctor->id != $scheduleModel->doctor_id) {
             abort(403, 'No puedes editar horarios de otros doctores');
         }
         
@@ -127,38 +174,56 @@ class DoctorScheduleController extends Controller
             'is_active' => 'boolean',
         ]);
         
-        // Validar que el doctor tenga la especialidad seleccionada
-        $doctor = Doctor::with('specialties')->find($schedule->doctor_id);
-        if (!$doctor->specialties->contains($request->specialty_id)) {
-            return redirect()->back()->withErrors(['specialty_id' => 'El doctor no tiene asignada esta especialidad.']);
+        // Logging diagnóstico antes de validar especialidad
+        try {
+            \Illuminate\Support\Facades\Log::info('DoctorScheduleController.update - diagnostic', [
+                'schedule_id' => $scheduleModel->id,
+                'schedule_doctor_id' => $scheduleModel->doctor_id,
+                'request_specialty_id' => $request->specialty_id,
+            ]);
+        } catch (\Exception $e) {
+            // no bloquear en caso de fallo del logger
+        }
+
+        // Validar que el doctor exista y tenga la especialidad seleccionada
+    $doctor = Doctor::with('specialties')->find($scheduleModel->doctor_id);
+        try {
+            \Illuminate\Support\Facades\Log::info('DoctorScheduleController.update - doctor loaded', [
+                'doctor' => $doctor ? ['id' => $doctor->id, 'specialty_ids' => $doctor->specialties ? $doctor->specialties->pluck('id') : null] : null,
+            ]);
+        } catch (\Exception $e) {}
+
+    if (!$doctor || !$doctor->specialties || !$doctor->specialties->contains('id', $request->specialty_id)) {
+            return redirect()->back()->withErrors(['specialty_id' => 'El doctor no tiene asignada esta especialidad o no existe.']);
         }
         
         // Verificar conflictos de horario (excluyendo el horario actual)
         $hasConflict = DoctorSchedule::hasScheduleConflict(
-            $schedule->doctor_id,
-            $schedule->day_of_week,
+            $scheduleModel->doctor_id,
+            $scheduleModel->day_of_week,
             $request->start_time,
             $request->end_time,
-            $schedule->id
+            $scheduleModel->id
         );
         
         if ($hasConflict) {
             $conflictingSchedules = DoctorSchedule::getConflictingSchedules(
-                $schedule->doctor_id,
-                $schedule->day_of_week,
+                $scheduleModel->doctor_id,
+                $scheduleModel->day_of_week,
                 $request->start_time,
                 $request->end_time,
-                $schedule->id
+                $scheduleModel->id
             );
 
             $conflicts = $conflictingSchedules->map(function($conflictSchedule) {
-                return $conflictSchedule->specialty->name . ' (' . $conflictSchedule->start_time . ' - ' . $conflictSchedule->end_time . ')';
+                $specName = optional($conflictSchedule->specialty)->name ?? 'Sin especialidad';
+                return $specName . ' (' . $conflictSchedule->start_time . ' - ' . $conflictSchedule->end_time . ')';
             })->implode(', ');
 
             return redirect()->back()->withErrors(['start_time' => "El horario se solapa con: {$conflicts}"]);
         }
         
-        $schedule->update($request->all());
+    $scheduleModel->update($request->all());
         
         return redirect()->back()->with('success', 'Horario actualizado exitosamente');
     }

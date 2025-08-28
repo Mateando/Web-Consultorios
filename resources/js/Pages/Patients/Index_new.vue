@@ -10,11 +10,7 @@
                         <!-- Header con botón -->
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-lg font-semibold text-gray-900">Lista de Pacientes</h3>
-                            <button 
-                                @click="openCreateModal" 
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                Nuevo Paciente
-                            </button>
+                            <PrimaryButton @click="openCreateModal">Nuevo Paciente</PrimaryButton>
                         </div>
 
                         <!-- Tabla de pacientes -->
@@ -59,19 +55,11 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button 
-                                                @click="editPatient(patient)" 
-                                                class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                                Editar
-                                            </button>
-                                            <button 
-                                                @click="togglePatientStatus(patient)" 
-                                                :class="{
+                                            <SecondaryButton type="button" @click="editPatient(patient)" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</SecondaryButton>
+                                            <SecondaryButton type="button" @click="togglePatientStatus(patient)" :class="{
                                                     'text-red-600 hover:text-red-900': patient.status !== 'inactive',
                                                     'text-green-600 hover:text-green-900': patient.status === 'inactive'
-                                                }">
-                                                {{ patient.status === 'inactive' ? 'Activar' : 'Desactivar' }}
-                                            </button>
+                                                }">{{ patient.status === 'inactive' ? 'Activar' : 'Desactivar' }}</SecondaryButton>
                                         </td>
                                     </tr>
                                     <tr v-if="!patients?.data || patients.data.length === 0">
@@ -121,6 +109,8 @@ import { router, Link } from '@inertiajs/vue3'
 import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PatientModal from '@/Components/PatientModal.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
     patients: Object,

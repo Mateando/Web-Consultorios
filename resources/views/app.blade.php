@@ -11,6 +11,11 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        <!-- Dynamic favicon from clinic settings (shared via AppServiceProvider) -->
+        @if(!empty($clinic_logo_url))
+            <link rel="icon" href="{{ $clinic_logo_url }}" />
+        @endif
+
         <!-- Scripts -->
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])

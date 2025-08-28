@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use App\Models\Specialty;
 use App\Models\DoctorSchedule as DoctorScheduleModel;
 use Livewire\WithPagination;
+use Illuminate\Support\Facades\Log;
 
 class DoctorSchedule extends Component
 {
@@ -22,7 +23,6 @@ class DoctorSchedule extends Component
     public $editingScheduleId = null;
 
     public $showForm = false;
-    public $selectedDoctor = null;
 
     protected $rules = [
         'doctorId' => 'required|exists:doctors,id',
@@ -56,13 +56,11 @@ class DoctorSchedule extends Component
     {
         if ($doctorId) {
             $this->doctorId = $doctorId;
-            $this->selectedDoctor = Doctor::find($doctorId);
         }
     }
 
     public function updatedDoctorId()
     {
-        $this->selectedDoctor = Doctor::with('specialties')->find($this->doctorId);
         $this->specialtyId = null;
     }
 
@@ -71,14 +69,26 @@ class DoctorSchedule extends Component
         $this->reset(['specialtyId', 'dayOfWeek', 'startTime', 'endTime', 'appointmentDuration', 'isActive', 'editingScheduleId']);
         $this->appointmentDuration = 30;
         $this->isActive = true;
-        $this->showForm = true;
+    $this->showForm = true;
     }
 
     public function editSchedule($scheduleId)
     {
         $schedule = DoctorScheduleModel::find($scheduleId);
-        
-        if ($schedule) {
+    if ($schedule) {
+            // Diagnostic logging to help debug what data is being loaded when editing
+            Log::info('Livewire.editSchedule - schedule loaded', [
+                'schedule_id' => $scheduleId,
+                'schedule_doctor_id' => $schedule->doctor_id,
+                'schedule_specialty_id' => $schedule->specialty_id,
+            ]);
+
+            $doctor = Doctor::with('specialties')->find($schedule->doctor_id);
+            Log::info('Livewire.editSchedule - doctor loaded', [
+                'doctor_id' => $doctor ? $doctor->id : null,
+                'doctor_specialty_ids' => $doctor && $doctor->specialties ? $doctor->specialties->pluck('id')->toArray() : [],
+            ]);
+
             $this->editingScheduleId = $scheduleId;
             $this->doctorId = $schedule->doctor_id;
             $this->specialtyId = $schedule->specialty_id;
@@ -87,7 +97,6 @@ class DoctorSchedule extends Component
             $this->endTime = $schedule->end_time;
             $this->appointmentDuration = $schedule->appointment_duration;
             $this->isActive = $schedule->is_active;
-            $this->selectedDoctor = Doctor::with('specialties')->find($this->doctorId);
             $this->showForm = true;
         }
     }
@@ -96,9 +105,20 @@ class DoctorSchedule extends Component
     {
         $this->validate();
 
-        // Validar que el doctor tenga la especialidad seleccionada
+        // Validar que el doctor exista y tenga la especialidad seleccionada
         $doctor = Doctor::with('specialties')->find($this->doctorId);
-        if (!$doctor->specialties->contains($this->specialtyId)) {
+        if (!$doctor) {
+            $this->addError('doctorId', 'El doctor seleccionado no existe.');
+            return;
+        }
+
+        if (!$this->specialtyId) {
+            $this->addError('specialtyId', 'Debe seleccionar una especialidad.');
+            return;
+        }
+
+    // Fix: contains($id) no funciona como se espera en colección de modelos; usar contains('id', $id)
+    if (!$doctor->specialties || !$doctor->specialties->contains('id', $this->specialtyId)) {
             $this->addError('specialtyId', 'El doctor no tiene asignada esta especialidad.');
             return;
         }
@@ -122,7 +142,8 @@ class DoctorSchedule extends Component
             );
 
             $conflicts = $conflictingSchedules->map(function($schedule) {
-                return $schedule->specialty->name . ' (' . $schedule->start_time . ' - ' . $schedule->end_time . ')';
+                $specName = optional($schedule->specialty)->name ?? 'Sin especialidad';
+                return $specName . ' (' . $schedule->start_time . ' - ' . $schedule->end_time . ')';
             })->implode(', ');
 
             $this->addError('startTime', "El horario se solapa con: {$conflicts}");
@@ -185,7 +206,7 @@ class DoctorSchedule extends Component
     public function closeForm()
     {
         $this->showForm = false;
-        $this->reset(['specialtyId', 'dayOfWeek', 'startTime', 'endTime', 'appointmentDuration', 'isActive', 'editingScheduleId']);
+    $this->reset(['specialtyId', 'dayOfWeek', 'startTime', 'endTime', 'appointmentDuration', 'isActive', 'editingScheduleId']);
         $this->resetErrorBag();
     }
 
@@ -202,6 +223,15 @@ class DoctorSchedule extends Component
             ->orderBy('start_time')
             ->paginate(10);
 
+        $selectedDoctor = null;
+        $specialtiesForDoctor = collect();
+        if ($this->doctorId) {
+            $selectedDoctor = Doctor::with('specialties')->find($this->doctorId);
+            if ($selectedDoctor && $selectedDoctor->specialties) {
+                $specialtiesForDoctor = $selectedDoctor->specialties;
+            }
+        }
+
         $daysOfWeek = [
             'monday' => 'Lunes',
             'tuesday' => 'Martes',
@@ -212,6 +242,6 @@ class DoctorSchedule extends Component
             'sunday' => 'Domingo',
         ];
 
-        return view('livewire.doctor-schedule', compact('doctors', 'specialties', 'schedules', 'daysOfWeek'));
+    return view('livewire.doctor-schedule', compact('doctors', 'specialties', 'schedules', 'daysOfWeek', 'selectedDoctor', 'specialtiesForDoctor'));
     }
 }

@@ -182,19 +182,8 @@
 
                             <!-- Botones -->
                             <div class="flex justify-end space-x-4 mt-8">
-                                <Link
-                                    :href="route('appointments.index')"
-                                    class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
-                                >
-                                    Cancelar
-                                </Link>
-                                <button
-                                    type="submit"
-                                    :disabled="processing || !form.patient_id || !form.doctor_id || !form.time"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-                                >
-                                    {{ processing ? 'Creando...' : 'Crear Cita' }}
-                                </button>
+                                <SecondaryButton type="button" @click="() => router.visit(route('appointments.index'))">Cancelar</SecondaryButton>
+                                <PrimaryButton type="submit" :disabled="processing || !form.patient_id || !form.doctor_id || !form.time">{{ processing ? 'Creando...' : 'Crear Cita' }}</PrimaryButton>
                             </div>
                         </form>
                     </div>
@@ -206,9 +195,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import axios from 'axios';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 
 // Props
 const props = defineProps({
@@ -301,6 +292,7 @@ const loadAvailableSlots = async () => {
             params: {
                 doctor_id: form.doctor_id,
                 date: form.date,
+                specialty_id: form.specialty_id
             }
         });
         

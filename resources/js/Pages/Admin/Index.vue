@@ -135,6 +135,24 @@
                             </div>
                         </div>
                     </Link>
+                    
+                    <Link :href="route('admin.config.clinic')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-indigo-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M7 7V4a2 2 0 012-2h6a2 2 0 012 2v3"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-lg font-medium text-gray-900">Datos del Consultorio</div>
+                                    <div class="text-sm text-gray-500">Configura el nombre, dirección y datos de contacto</div>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
                 </div>
 
                 <!-- Actividad Reciente -->

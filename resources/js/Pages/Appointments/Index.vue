@@ -14,41 +14,24 @@
                             </h3>
                             <div class="flex space-x-4">
                                 <!-- Botón para nueva cita (solo para admin, doctores y recepcionistas) -->
-                                <button
+                                <PrimaryButton
                                     v-if="user_permissions?.can_create_appointments"
                                     @click="createNewAppointment"
-                                    :disabled="!canCreateNewAppointment"
                                     :title="newAppointmentTooltip"
-                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                                    :class="{ 'bg-gray-400 hover:bg-gray-400': !canCreateNewAppointment }"
+                                    :disabled="!canCreateNewAppointment || loadingAvailableDays"
                                 >
                                     {{ loadingAvailableDays ? 'Verificando...' : 'Nueva Cita' }}
-                                </button>
+                                </PrimaryButton>
                                 
                                 <!-- Toggle vista -->
                                 <div class="flex space-x-2">
-                                    <button
-                                        @click="currentView = 'calendar'"
-                                        :class="[
-                                            'px-3 py-1 rounded text-sm',
-                                            currentView === 'calendar' 
-                                                ? 'bg-blue-500 text-white' 
-                                                : 'bg-gray-200 text-gray-700'
-                                        ]"
-                                    >
-                                        Calendario
-                                    </button>
-                                    <button
-                                        @click="currentView = 'list'"
-                                        :class="[
-                                            'px-3 py-1 rounded text-sm',
-                                            currentView === 'list' 
-                                                ? 'bg-blue-500 text-white' 
-                                                : 'bg-gray-200 text-gray-700'
-                                        ]"
-                                    >
-                                        Lista
-                                    </button>
+                                    <!-- Calendario: usar SecondaryButton v-if/v-else para clases estáticas -->
+                                    <SecondaryButton v-if="currentView === 'calendar'" type="button" @click="currentView = 'calendar'" class="px-3 py-1 text-sm bg-blue-500 text-white border-transparent hover:bg-blue-600">Calendario</SecondaryButton>
+                                    <SecondaryButton v-else type="button" @click="currentView = 'calendar'" class="px-3 py-1 text-sm">Calendario</SecondaryButton>
+
+                                    <!-- Lista: usar SecondaryButton v-if/v-else para clases estáticas -->
+                                    <SecondaryButton v-if="currentView === 'list'" type="button" @click="currentView = 'list'" class="px-3 py-1 text-sm bg-blue-500 text-white border-transparent hover:bg-blue-600">Lista</SecondaryButton>
+                                    <SecondaryButton v-else type="button" @click="currentView = 'list'" class="px-3 py-1 text-sm">Lista</SecondaryButton>
                                 </div>
                             </div>
                         </div>
@@ -218,41 +201,21 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <!-- Botones para admin, doctores y recepcionistas -->
                                             <template v-if="user_permissions?.can_edit_appointments">
-                                                <button
-                                                    @click="editAppointment(appointment)"
-                                                    class="text-indigo-600 hover:text-indigo-900 mr-3"
-                                                >
-                                                    Editar
-                                                </button>
+                                                <SecondaryButton type="button" @click="editAppointment(appointment)" class="!px-2 !py-1 mr-3 text-indigo-600 hover:text-indigo-900 bg-white border-gray-200">Editar</SecondaryButton>
                                             </template>
-                                            
+
                                             <!-- Botón editar para pacientes (solo si pueden editar) -->
                                             <template v-if="user_permissions?.is_patient && canPatientEditAppointment(appointment)">
-                                                <button
-                                                    @click="editAppointment(appointment)"
-                                                    class="text-indigo-600 hover:text-indigo-900 mr-3"
-                                                >
-                                                    Editar
-                                                </button>
+                                                <SecondaryButton type="button" @click="editAppointment(appointment)" class="!px-2 !py-1 mr-3 text-indigo-600 hover:text-indigo-900 bg-white border-gray-200">Editar</SecondaryButton>
                                             </template>
-                                            
+
                                             <template v-if="user_permissions?.can_delete_appointments">
-                                                <button
-                                                    @click="deleteAppointment(appointment)"
-                                                    class="text-red-600 hover:text-red-900 mr-3"
-                                                >
-                                                    Eliminar
-                                                </button>
+                                                <SecondaryButton type="button" @click="deleteAppointment(appointment)" class="!px-2 !py-1 mr-3 text-red-600 hover:text-red-900 bg-white border-gray-200">Eliminar</SecondaryButton>
                                             </template>
-                                            
+
                                             <!-- Botón cancelar para pacientes (solo si no pueden editar) -->
                                             <template v-if="user_permissions?.can_cancel_own_appointments && !canPatientEditAppointment(appointment) && canCancelAppointment(appointment)">
-                                                <button
-                                                    @click="cancelAppointment(appointment)"
-                                                    class="text-orange-600 hover:text-orange-900"
-                                                >
-                                                    Cancelar
-                                                </button>
+                                                <SecondaryButton type="button" @click="cancelAppointment(appointment)" class="!px-3 !py-1 text-sm !bg-white text-orange-600 border-transparent hover:bg-orange-50">Cancelar</SecondaryButton>
                                             </template>
                                             
                                             <!-- Mensaje para pacientes cuando no pueden cancelar -->
@@ -292,16 +255,16 @@
                 </div>
 
                 <!-- Modal para crear/editar cita -->
-                <AppointmentModal
-                    :show="showCreateModal || showEditModal"
-                    :appointment="selectedAppointment"
-                    :selected-date="selectedDate"
-                    :doctors="doctors"
-                    :patients="patients"
-                    :specialties="specialties"
-                    @close="closeModal"
-                    @saved="appointmentSaved"
-                />
+                        <AppointmentModal
+                            :show="showCreateModal || showEditModal"
+                            :appointment="selectedAppointment"
+                            :selected-date="selectedDate"
+                            :doctors="doctors"
+                            :patients="patients"
+                            :specialties="specialties"
+                            @close="closeModal"
+                            @saved="appointmentSaved"
+                        />
             </div>
         </div>
     </AuthenticatedLayout>
@@ -315,6 +278,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import AppointmentCalendar from '@/Components/AppointmentCalendar.vue'
 import AppointmentModal from '@/Components/AppointmentModal.vue'
 import axios from 'axios'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 
 const props = defineProps({
     appointments: Object,

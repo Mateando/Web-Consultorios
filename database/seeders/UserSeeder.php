@@ -17,10 +17,11 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear administrador
-        $admin = User::create([
+        // Crear/actualizar administrador
+        $admin = User::firstOrCreate([
+            'email' => 'admin@consultorio.com'
+        ], [
             'name' => 'Administrador Sistema',
-            'email' => 'admin@consultorio.com',
             'password' => Hash::make('password'),
             'phone' => '123-456-7890',
             'address' => 'Oficina Principal',
@@ -31,12 +32,13 @@ class UserSeeder extends Seeder
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $admin->assignRole('administrador');
+        $admin->syncRoles(['administrador']);
 
         // Crear recepcionista
-        $receptionist = User::create([
+        $receptionist = User::firstOrCreate([
+            'email' => 'recepcion@consultorio.com'
+        ], [
             'name' => 'María González',
-            'email' => 'recepcion@consultorio.com',
             'password' => Hash::make('password'),
             'phone' => '123-456-7891',
             'address' => 'Calle Principal 123',
@@ -47,7 +49,7 @@ class UserSeeder extends Seeder
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $receptionist->assignRole('recepcionista');
+        $receptionist->syncRoles(['recepcionista']);
 
         // Crear doctores
         $specialties = Specialty::all();
@@ -100,9 +102,10 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($doctors as $doctorData) {
-            $user = User::create([
+            $user = User::firstOrCreate([
+                'email' => $doctorData['email']
+            ], [
                 'name' => $doctorData['name'],
-                'email' => $doctorData['email'],
                 'password' => Hash::make('password'),
                 'phone' => '123-456-' . rand(1000, 9999),
                 'address' => 'Consultorio Médico',
@@ -113,11 +116,11 @@ class UserSeeder extends Seeder
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]);
-            
-            $user->assignRole('medico');
-            
-            Doctor::create([
+            $user->syncRoles(['medico']);
+
+            Doctor::firstOrCreate([
                 'user_id' => $user->id,
+            ], [
                 'license_number' => $doctorData['license'],
                 'specialty_id' => $doctorData['specialty_id'],
                 'education' => $doctorData['education'],
@@ -185,9 +188,10 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($patients as $patientData) {
-            $user = User::create([
+            $user = User::firstOrCreate([
+                'email' => $patientData['email']
+            ], [
                 'name' => $patientData['name'],
-                'email' => $patientData['email'],
                 'password' => Hash::make('password'),
                 'phone' => '123-456-' . rand(1000, 9999),
                 'address' => 'Dirección del paciente ' . rand(100, 999),
@@ -198,11 +202,11 @@ class UserSeeder extends Seeder
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]);
-            
-            $user->assignRole('paciente');
-            
-            Patient::create([
+            $user->syncRoles(['paciente']);
+
+            Patient::firstOrCreate([
                 'user_id' => $user->id,
+            ], [
                 'emergency_contact_name' => 'Contacto de emergencia',
                 'emergency_contact_phone' => '123-456-' . rand(1000, 9999),
                 'insurance_provider' => 'Seguro Médico Nacional',

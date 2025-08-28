@@ -16,6 +16,7 @@ class Appointment extends Model
         'specialty_id',
         'appointment_date',
         'duration',
+        'consultation_fee',
         'status',
         'reason',
         'notes',
