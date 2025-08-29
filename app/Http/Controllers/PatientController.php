@@ -34,13 +34,6 @@ class PatientController extends Controller
                 ->withQueryString();
 
             $first = $patients->first();
-            Log::info('PatientController@index (Inertia)', [
-                'search' => $search,
-                'patients_page_count' => $patients->count(),
-                'patients_total' => $patients->total(),
-                'auth_user_id' => auth()->id(),
-                'first_patient' => $first && $first->user ? $first->user->name : null
-            ]);
 
             return Inertia::render('Patients/Index', [
                 'patients' => $patients,
