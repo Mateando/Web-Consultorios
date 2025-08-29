@@ -123,6 +123,7 @@ const hasRole = (roles) => {
                             <NavLink :href="route('admin.users')" :active="route().current('admin.users')">Gestión Usuarios</NavLink>
                             <NavLink :href="route('admin.specialties')" :active="route().current('admin.specialties')">Especialidades Médicas</NavLink>
                             <NavLink :href="route('admin.reports')" :active="route().current('admin.reports')">Reportes</NavLink>
+                            <NavLink :href="route('admin.config.clinic')" :active="route().current('admin.config.clinic')">Consultorio</NavLink>
                         </div>
                     </transition>
                     <!-- Flyout colapsado -->
@@ -132,6 +133,7 @@ const hasRole = (roles) => {
                             <Link :href="route('admin.users')" class="submenu-item" :class="route().current('admin.users') ? 'active' : ''">Gestión Usuarios</Link>
                             <Link :href="route('admin.specialties')" class="submenu-item" :class="route().current('admin.specialties') ? 'active' : ''">Especialidades Médicas</Link>
                             <Link :href="route('admin.reports')" class="submenu-item" :class="route().current('admin.reports') ? 'active' : ''">Reportes</Link>
+                            <Link :href="route('admin.config.clinic')" class="submenu-item" :class="route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
                         </div>
                     </div>
                 </div>
@@ -147,15 +149,13 @@ const hasRole = (roles) => {
                             <NavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</NavLink>
                             <NavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</NavLink>
                             <NavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</NavLink>
-                            <NavLink :href="route('admin.config.clinic')" :active="route().current('admin.config.clinic')">Consultorio</NavLink>
                         </div>
                     </transition>
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
                             <Link :href="route('admin.config.patient-types')" class="submenu-item" :class="route().current('admin.config.patient-types') ? 'active' : ''">Tipos de Paciente</Link>
                             <Link :href="route('admin.config.insurance-providers')" class="submenu-item" :class="route().current('admin.config.insurance-providers') ? 'active' : ''">Obras Sociales</Link>
-                                <Link :href="route('admin.config.countries')" class="submenu-item" :class="route().current('admin.config.countries') ? 'active' : ''">Países</Link>
-                                <Link :href="route('admin.config.clinic')" class="submenu-item" :class="route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
+                            <Link :href="route('admin.config.countries')" class="submenu-item" :class="route().current('admin.config.countries') ? 'active' : ''">Países</Link>
                         </div>
                     </div>
                 </div>

@@ -13,15 +13,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Primero recrear geografía (países/provincias/ciudades) tal como pediste
+        $this->call([
+            CountryProvinceCitySeeder::class,
+            ArgentinaFullGeoSeeder::class,
+        ]);
+
+        // Seeders base y roles
         $this->call([
             RoleSeeder::class,
             SpecialtySeeder::class,
             PatientTypeSeeder::class,
             InsuranceProviderSeeder::class,
-            CountryProvinceCitySeeder::class,
-            ArgentinaFullGeoSeeder::class,
             UserSeeder::class,
-            AppointmentSeeder::class,
+        ]);
+
+        // Seeder masivo que crea doctores, pacientes y citas (~800)
+        $this->call([
+            \Database\Seeders\MassiveTestDataSeeder::class,
         ]);
     }
 }

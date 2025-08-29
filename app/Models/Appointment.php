@@ -69,11 +69,23 @@ class Appointment extends Model
         $dayOfWeek = strtolower($appointmentDate->format('l'));
         $timeSlot = $appointmentDate->format('H:i');
 
-        // Verificar que el doctor tenga horario ese día
-        $schedule = $doctor->schedules()
+        // Verificar que el doctor tenga horario ese día y horario que cubra la hora
+        // Buscar el schedule cuyo intervalo cubre el timeSlot
+        $schedulesQuery = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
-            ->where('is_active', true)
-            ->first();
+            ->where('is_active', true);
+
+        // Intentar encontrar schedule que cubra el timeSlot
+        $schedule = $schedulesQuery->get()->first(function ($sch) use ($timeSlot) {
+            $start = Carbon::parse($sch->start_time)->format('H:i');
+            $end = Carbon::parse($sch->end_time)->format('H:i');
+            return $timeSlot >= $start && $timeSlot < $end;
+        });
+
+        // Si no se encontró ninguno que cubra exactamente el slot, tomar el primero disponible
+        if (!$schedule) {
+            $schedule = $schedulesQuery->first();
+        }
 
         if (!$schedule) {
             $dayInSpanish = self::translateDayToSpanish($dayOfWeek);

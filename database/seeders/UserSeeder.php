@@ -122,7 +122,7 @@ class UserSeeder extends Seeder
                 'user_id' => $user->id,
             ], [
                 'license_number' => $doctorData['license'],
-                'specialty_id' => $doctorData['specialty_id'],
+                //'specialty_id' => $doctorData['specialty_id'], // moved to pivot
                 'education' => $doctorData['education'],
                 'years_experience' => $doctorData['years_experience'],
                 'bio' => $doctorData['bio'],
@@ -136,6 +136,11 @@ class UserSeeder extends Seeder
                 'consultation_fee' => rand(50, 150),
                 'is_available' => true,
             ]);
+            // Asignar especialidad en la tabla pivot
+            $doctorModel = \App\Models\Doctor::where('user_id', $user->id)->first();
+            if ($doctorModel) {
+                $doctorModel->specialties()->sync([$doctorData['specialty_id']]);
+            }
         }
 
         // Crear pacientes
