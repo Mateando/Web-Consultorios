@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\ClinicSetting;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ClinicSettingController extends Controller
@@ -13,14 +14,35 @@ class ClinicSettingController extends Controller
     public function edit()
     {
         $clinic = ClinicSetting::first();
+
+        $logoUrl = null;
+        if ($clinic && $clinic->logo_path) {
+            try {
+                $logoUrl = Storage::url($clinic->logo_path);
+            } catch (\Throwable $e) {
+                $logoUrl = null;
+            }
+        }
+
         return Inertia::render('Admin/ClinicSettings', [
-            'clinic' => $clinic,
+            'clinic' => $clinic ? [
+                'id' => $clinic->id,
+                'name' => $clinic->name,
+                'address' => $clinic->address,
+                'phone' => $clinic->phone,
+                'email' => $clinic->email,
+                'tax_id' => $clinic->tax_id,
+                'footer_notes' => $clinic->footer_notes,
+                'logo_url' => $logoUrl,
+            ] : null,
         ]);
     }
 
     public function update(Request $request)
     {
         $clinic = ClinicSetting::first();
+
+        
 
         $data = $request->validate([
             'name' => 'nullable|string|max:255',

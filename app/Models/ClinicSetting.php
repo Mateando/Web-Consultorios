@@ -17,6 +17,7 @@ class ClinicSetting extends Model
         'phone',
         'email',
         'tax_id',
-        'footer_notes',
+    'footer_notes',
+    'logo_path',
     ];
 }

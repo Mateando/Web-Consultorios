@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { usePage, Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
@@ -93,16 +93,19 @@ import SecondaryButton from '@/Components/SecondaryButton.vue'
 import axios from 'axios'
 
 const page = usePage()
-// Make clinic reactive so updates from the server are reflected in the UI
-const clinic = ref(page?.props?.value?.clinic || {})
+// Make clinic reactive so updates from the server are reflected in the UI.
+// Use a defensive initialization: read from Inertia props when available and
+// keep clinic in a ref so we can watch it. Use a reactive object for the form
+// so v-model works consistently with nested properties.
+const clinic = ref({})
 
-const form = ref({
-  name: clinic.value.name || '',
-  address: clinic.value.address || '',
-  phone: clinic.value.phone || '',
-  email: clinic.value.email || '',
-  tax_id: clinic.value.tax_id || '',
-  footer_notes: clinic.value.footer_notes || '',
+const form = reactive({
+  name: '',
+  address: '',
+  phone: '',
+  email: '',
+  tax_id: '',
+  footer_notes: '',
 })
 
 const processing = ref(false)
@@ -126,7 +129,7 @@ const submit = async () => {
     const url = route('admin.config.clinic.update')
   // If there's a file, send multipart/form-data
   const payload = new FormData();
-  Object.keys(form.value).forEach(k => payload.append(k, form.value[k] ?? ''));
+  Object.keys(form).forEach(k => payload.append(k, form[k] ?? ''));
   // logoFile and removeLogoFlag are refs — use .value
   if (logoFile.value) payload.append('logo', logoFile.value);
   if (removeLogoFlag.value) payload.append('remove_logo', '1');
@@ -137,20 +140,37 @@ const submit = async () => {
     if (data?.clinic) {
       // update local reactive clinic so template reflects changes immediately
       try {
-        clinic.value = data.clinic
-        // also attempt to update page props for consistency
-        page.props.value.clinic = data.clinic
+        // add a cache-buster so the browser reloads the image when path changes
+        const cacheBustedUrl = data.clinic.logo_url ? `${data.clinic.logo_url}?v=${Date.now()}` : null
+        clinic.value = { ...data.clinic, logo_url: cacheBustedUrl }
+
+        // also attempt to update page props for consistency (safe)
+        if (page && page.props) {
+          page.props.clinic = { ...data.clinic, logo_url: cacheBustedUrl }
+        }
+
         // dispatch a browser event so other components (ApplicationLogo) can react
-        window.dispatchEvent(new CustomEvent('clinic-updated', { detail: data.clinic }))
-        // update favicon if present
-        if (data.clinic.logo_url) {
+        window.dispatchEvent(new CustomEvent('clinic-updated', { detail: clinic.value }))
+
+        // update favicon if present (with cache-buster)
+        if (cacheBustedUrl) {
           const link = document.querySelector("link[rel*='icon']") || document.createElement('link')
           link.type = 'image/png'
           link.rel = 'icon'
-          link.href = data.clinic.logo_url
+          link.href = cacheBustedUrl
           document.getElementsByTagName('head')[0].appendChild(link)
         }
-      } catch (e) {}
+
+        // clear upload state so the preview/input resets after successful save
+        logoFile.value = null
+        logoPreview.value = null
+        removeLogoFlag.value = false
+        if (fileInput.value && typeof fileInput.value.value !== 'undefined') {
+          fileInput.value.value = ''
+        }
+      } catch (e) {
+        // swallow errors from DOM hacks
+      }
     }
   } catch (err) {
     if (err.response && err.response.status === 422) {
@@ -165,14 +185,14 @@ const submit = async () => {
 }
 
 const reset = () => {
-  form.value = {
+  Object.assign(form, {
     name: clinic.value.name || '',
     address: clinic.value.address || '',
     phone: clinic.value.phone || '',
     email: clinic.value.email || '',
     tax_id: clinic.value.tax_id || '',
     footer_notes: clinic.value.footer_notes || '',
-  }
+  })
 }
 
 // Logo upload state and helpers
@@ -198,4 +218,45 @@ const removeLogo = () => {
   logoPreview.value = null
   removeLogoFlag.value = true
 }
+
+onMounted(() => {
+  // populate clinic from Inertia page props (may be populated after module init)
+  clinic.value = page?.props?.clinic || {};
+  // initialize form from clinic data
+  Object.assign(form, {
+    name: clinic.value.name || '',
+    address: clinic.value.address || '',
+    phone: clinic.value.phone || '',
+    email: clinic.value.email || '',
+    tax_id: clinic.value.tax_id || '',
+    footer_notes: clinic.value.footer_notes || '',
+  })
+
+  // debug logging removed to keep console clean
+
+  // Verificar si los datos de clinic están disponibles
+  if (!clinic.value || Object.keys(clinic.value).length === 0) {
+    console.warn('No se recibieron datos del consultorio desde el backend.');
+  } else {
+    console.info('Datos del consultorio cargados correctamente:', clinic.value);
+  }
+})
+
+// Watch for changes in clinic.value and update form accordingly
+// Watch page props clinic (more robust) and update local clinic + form
+watch(
+  () => page?.props?.clinic,
+  (newClinic) => {
+    clinic.value = newClinic || {}
+    Object.assign(form, {
+      name: clinic.value.name || '',
+      address: clinic.value.address || '',
+      phone: clinic.value.phone || '',
+      email: clinic.value.email || '',
+      tax_id: clinic.value.tax_id || '',
+      footer_notes: clinic.value.footer_notes || '',
+    })
+  },
+  { immediate: true }
+)
 </script>

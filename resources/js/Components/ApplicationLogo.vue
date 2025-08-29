@@ -15,11 +15,12 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 
 const page = usePage()
-// In this project we expose clinic via Inertia as page.props.value.clinic
-const logoUrl = ref(page.props?.value?.clinic?.logo_url || null)
+// Read clinic logo from Inertia shared props (page.props.clinic)
+const logoUrl = ref(page.props?.clinic?.logo_url || null)
 
 const onClinicUpdated = (e) => {
     if (e && e.detail && e.detail.logo_url) {
+        // Accept cache-busted URL from the emitter
         logoUrl.value = e.detail.logo_url
     }
 }
@@ -27,10 +28,7 @@ const onClinicUpdated = (e) => {
 onMounted(() => {
     window.addEventListener('clinic-updated', onClinicUpdated)
     // Debug: log initial values so we can see why the logo isn't rendered
-        try {
-            console.debug('[ApplicationLogo] initial page.props.value.clinic.logo_url=', page.props?.value?.clinic?.logo_url)
-            console.debug('[ApplicationLogo] initial logoUrl=', logoUrl.value)
-        } catch (e) {}
+    // debug logging removed
 })
 
 onBeforeUnmount(() => {
@@ -38,7 +36,7 @@ onBeforeUnmount(() => {
 })
 
 // Also react to Inertia shared prop changes if they happen
-watch(() => page.props?.value?.clinic?.logo_url, (v) => {
+watch(() => page.props?.clinic?.logo_url, (v) => {
     if (v) logoUrl.value = v
 })
 </script>
