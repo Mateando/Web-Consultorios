@@ -32,5 +32,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             \Database\Seeders\MassiveTestDataSeeder::class,
         ]);
+
+        // Seeders para configuración: motivos y feriados
+        $this->call([
+            \Database\Seeders\AppointmentReasonsTableSeeder::class,
+            \Database\Seeders\HolidaysTableSeeder::class,
+        ]);
     }
 }

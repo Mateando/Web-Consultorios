@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Specialty;
+use App\Models\Holiday;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -174,6 +175,7 @@ class AppointmentController extends Controller
             'duration' => 'nullable|integer|min:15|max:240',
             'notes' => 'nullable|string|max:1000',
             'reason' => 'nullable|string|max:1000',
+            'reason_id' => 'nullable|exists:appointment_reasons,id',
             'status' => 'nullable|in:programada,confirmada,en_curso,completada,cancelada,no_asistio',
         ]);
 
@@ -282,6 +284,16 @@ class AppointmentController extends Controller
             ]);
         }
 
+        // Map reason_id to reason text if provided
+        $reasonText = $request->reason;
+        $reasonId = $request->reason_id ?? null;
+        if ($reasonId) {
+            $r = \App\Models\AppointmentReason::find($reasonId);
+            if ($r) {
+                $reasonText = $r->name;
+            }
+        }
+
         $appointment = Appointment::create([
             'patient_id' => $request->patient_id,
             'doctor_id' => $request->doctor_id,
@@ -289,7 +301,8 @@ class AppointmentController extends Controller
             'appointment_date' => $request->appointment_date,
             'duration' => $request->duration ?? 30,
             'notes' => $request->notes,
-            'reason' => $request->reason,
+            'reason' => $reasonText,
+            'reason_id' => $reasonId,
             'status' => $request->status ?? 'programada',
             'created_by' => Auth::id(),
         ]);
@@ -436,6 +449,7 @@ class AppointmentController extends Controller
             'duration' => 'nullable|integer|min:15|max:240',
             'notes' => 'nullable|string|max:1000',
             'reason' => 'nullable|string|max:1000',
+            'reason_id' => 'nullable|exists:appointment_reasons,id',
             'status' => 'nullable|in:programada,confirmada,en_curso,completada,cancelada,no_asistio',
         ]);
 
@@ -464,6 +478,13 @@ class AppointmentController extends Controller
             }
         }
 
+        $reasonText = $request->reason;
+        $reasonId = $request->reason_id ?? null;
+        if ($reasonId) {
+            $r = \App\Models\AppointmentReason::find($reasonId);
+            if ($r) $reasonText = $r->name;
+        }
+
         $appointment->update([
             'patient_id' => $request->patient_id,
             'doctor_id' => $request->doctor_id,
@@ -471,7 +492,8 @@ class AppointmentController extends Controller
             'appointment_date' => $request->appointment_date,
             'duration' => $request->duration ?? 30,
             'notes' => $request->notes,
-            'reason' => $request->reason,
+            'reason' => $reasonText,
+            'reason_id' => $reasonId,
             'status' => $request->status ?? 'programada',
         ]);
 
@@ -635,6 +657,31 @@ class AppointmentController extends Controller
         $date = Carbon::parse($request->date);
         $dayOfWeek = strtolower($date->format('l')); // monday, tuesday, etc.
         
+        // Primero: validar si la fecha solicitada es un feriado activo (no laborable)
+        $isHoliday = Holiday::where('is_active', true)
+            ->where(function($q) use ($date) {
+                $q->whereDate('date', $date->toDateString())
+                  ->orWhere(function($q2) use ($date) {
+                      $q2->where('is_recurring', true)
+                         ->whereRaw('MONTH(`date`) = ? AND DAY(`date`) = ?', [$date->month, $date->day]);
+                  });
+            })->first();
+
+        if ($isHoliday) {
+            return response()->json([
+                'slots' => [],
+                'message' => 'Fecha seleccionada es un día feriado: ' . ($isHoliday->name ?? 'Feriado'),
+                'duration' => 0,
+                'holiday' => [
+                    'id' => $isHoliday->id,
+                    'name' => $isHoliday->name,
+                    'date' => $isHoliday->date->toDateString(),
+                    'is_recurring' => (bool)$isHoliday->is_recurring,
+                    'notes' => $isHoliday->notes,
+                ]
+            ]);
+        }
+
         // Validar que el doctor tenga la especialidad seleccionada
         if (!$doctor->specialties->contains($request->specialty_id)) {
             return response()->json([

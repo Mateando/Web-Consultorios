@@ -35,6 +35,18 @@
                             <div class="flex items-end">
                                 <PrimaryButton type="submit">Filtrar</PrimaryButton>
                             </div>
+                            <div class="flex items-end">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Plantilla</label>
+                                    <select v-model="selectedTemplate" class="rounded-md border-gray-300">
+                                        <option :value="null">-- Ninguna --</option>
+                                        <option v-for="tpl in templates" :key="tpl.id" :value="tpl.id">{{ tpl.title }}</option>
+                                    </select>
+                                </div>
+                                <div class="ml-2">
+                                    <PrimaryButton type="button" @click="printTemplate" :disabled="!selectedTemplate">Imprimir Plantilla</PrimaryButton>
+                                </div>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -125,6 +137,8 @@ import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 
+import { onMounted, ref } from 'vue'
+
 const props = defineProps({
     appointments_by_status: Array,
     revenue_by_doctor: Array,
@@ -132,6 +146,12 @@ const props = defineProps({
 })
 
 // Filtros de fecha
+// mover helper antes de usarla
+const formatDateForInput = (dateString) => {
+    if (!dateString) return ''
+    return new Date(dateString).toISOString().split('T')[0]
+}
+
 const dateFilters = reactive({
     start_date: props.filters?.startDate ? formatDateForInput(props.filters.startDate) : '',
     end_date: props.filters?.endDate ? formatDateForInput(props.filters.endDate) : ''
@@ -146,6 +166,28 @@ const filterReports = () => {
         preserveScroll: true
     })
 }
+
+// Plantillas para imprimir
+const templates = ref([])
+const selectedTemplate = ref(null)
+
+const loadTemplates = async () => {
+    try {
+        const res = await fetch('/api/config/medical-order-templates/active')
+        if (res.ok) templates.value = await res.json()
+    } catch (e) {
+        console.error('Error cargando plantillas', e)
+    }
+}
+
+const printTemplate = () => {
+    if (!selectedTemplate.value) return
+    // Abrir en nueva pestaña la vista imprimible
+    const url = `/admin/reports/medical-order-templates/${selectedTemplate.value}/print`;
+    window.open(url, '_blank')
+}
+
+onMounted(() => loadTemplates())
 
 const getStatusLabel = (status) => {
     const labels = {
@@ -164,11 +206,6 @@ const formatCurrency = (amount) => {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     }).format(amount)
-}
-
-const formatDateForInput = (dateString) => {
-    if (!dateString) return ''
-    return new Date(dateString).toISOString().split('T')[0]
 }
 
 // Cálculos del resumen

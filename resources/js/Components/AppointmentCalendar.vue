@@ -4,6 +4,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import axios from 'axios'
 import { Calendar } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -32,6 +33,16 @@ const emit = defineEmits(['event-click', 'date-click'])
 
 const calendarEl = ref(null)
 let calendar = null
+const holidaysMap = ref({}) // key: 'YYYY-MM-DD' => { name, is_recurring }
+
+const pad = (n) => String(n).padStart(2, '0')
+const dateKeyFromDate = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+const dateKeyFromYmd = (ymd) => {
+    if (!ymd) return ''
+    const parts = String(ymd).split('-')
+    if (parts.length < 3) return ymd
+    return `${parts[0]}-${pad(parts[1])}-${pad(parts[2])}`
+}
 
 const isDateAvailable = (dateInfo) => {
     if (!props.filteredSpecialtyId) {
@@ -42,6 +53,53 @@ const isDateAvailable = (dateInfo) => {
     const dayOfWeek = date.getDay()
     
     return props.availableDays.includes(dayOfWeek)
+}
+
+// Helper: fetch holidays between two dates and populate holidaysMap
+const fetchHolidaysForRange = async (from, to) => {
+    try {
+        const resp = await axios.get(route('api.config.holidays'), {
+            params: { from, to }
+        })
+        const items = resp.data || []
+        const map = {}
+
+        // Build list of dates in the visible range to support recurring holidays
+        const start = new Date(from)
+        const end = new Date(to)
+        const days = []
+        for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+            days.push(new Date(cur))
+        }
+
+        items.forEach(h => {
+            if (!h || !h.date) return
+            // h.date is expected as 'YYYY-MM-DD' from the API
+            if (h.is_recurring) {
+                // Parse month/day from the provided date string without timezone effects
+                const parts = String(h.date).split('-')
+                const hy = parseInt(parts[0], 10)
+                const hm = parseInt(parts[1], 10)
+                const hd = parseInt(parts[2], 10)
+                days.forEach(d => {
+                    if ((d.getMonth() + 1) === hm && d.getDate() === hd) {
+                        const key = dateKeyFromDate(d)
+                        map[key] = { name: h.name, is_recurring: true }
+                    }
+                })
+            } else {
+                // Non-recurring: use the exact YMD string as key (normalized)
+                const key = dateKeyFromYmd(h.date)
+                map[key] = { name: h.name, is_recurring: false }
+            }
+        })
+
+        holidaysMap.value = map
+        // force calendar redraw of day cells
+        if (calendar) calendar.render()
+    } catch (e) {
+        console.error('Error fetching holidays:', e)
+    }
 }
 
 const initCalendar = () => {
@@ -101,7 +159,26 @@ const initCalendar = () => {
                     view: info.view
                 })
             },
+            // Called when the visible date range changes (e.g., user navigates month)
+            datesSet: (info) => {
+                const from = info.startStr
+                const to = info.endStr
+                fetchHolidaysForRange(from, to)
+            },
+            dayCellDidMount: (info) => {
+                const dateStr = dateKeyFromDate(info.date)
+                const holiday = holidaysMap.value[dateStr]
+                if (holiday) {
+                    // add title tooltip
+                    info.el.title = `Feriado: ${holiday.name}`
+                    info.el.classList.add('holiday-day')
+                }
+            },
             dayCellClassNames: (info) => {
+                const dateStr = dateKeyFromDate(info.date)
+                if (holidaysMap.value[dateStr]) {
+                    return ['blocked-day', 'holiday-day']
+                }
                 if (!isDateAvailable(info)) {
                     return ['blocked-day']
                 }

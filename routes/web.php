@@ -92,6 +92,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/specialties/{specialty}', [AdminController::class, 'destroySpecialty'])->name('admin.specialties.destroy');
         Route::get('/admin/reports', [AdminController::class, 'reports'])->name('admin.reports');
 
+    // Ruta para imprimir plantillas desde Reportes
+    Route::get('/admin/reports/medical-order-templates/{medicalOrderTemplate}/print', [\App\Http\Controllers\AdminConfigController::class, 'printMedicalOrderTemplate'])->name('admin.reports.medical-order-templates.print');
+
     // Clínica - configuración general
     Route::get('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'edit'])->name('admin.config.clinic');
     Route::post('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'update'])->name('admin.config.clinic.update');
@@ -106,6 +109,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'storeInsuranceProvider'])->name('admin.config.insurance-providers.store');
     Route::put('/admin/config/insurance-providers/{insuranceProvider}', [\App\Http\Controllers\AdminConfigController::class,'updateInsuranceProvider'])->name('admin.config.insurance-providers.update');
     Route::patch('/admin/config/insurance-providers/{insuranceProvider}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleInsuranceProvider'])->name('admin.config.insurance-providers.toggle');
+
+    // Feriados / Días no laborables
+    Route::get('/admin/config/holidays', [\App\Http\Controllers\AdminConfigController::class,'holidays'])->name('admin.config.holidays');
+    Route::post('/admin/config/holidays', [\App\Http\Controllers\AdminConfigController::class,'storeHoliday'])->name('admin.config.holidays.store');
+    Route::put('/admin/config/holidays/{holiday}', [\App\Http\Controllers\AdminConfigController::class,'updateHoliday'])->name('admin.config.holidays.update');
+    Route::patch('/admin/config/holidays/{holiday}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleHoliday'])->name('admin.config.holidays.toggle');
+
+    // Motivos de Turnos
+    Route::get('/admin/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'appointmentReasons'])->name('admin.config.appointment-reasons');
+    Route::post('/admin/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'storeAppointmentReason'])->name('admin.config.appointment-reasons.store');
+    Route::put('/admin/config/appointment-reasons/{appointmentReason}', [\App\Http\Controllers\AdminConfigController::class,'updateAppointmentReason'])->name('admin.config.appointment-reasons.update');
+    Route::patch('/admin/config/appointment-reasons/{appointmentReason}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleAppointmentReason'])->name('admin.config.appointment-reasons.toggle');
+    
+    // Plantillas de Ordenes medicas
+    Route::get('/admin/config/medical-order-templates', [\App\Http\Controllers\AdminConfigController::class,'medicalOrderTemplates'])->name('admin.config.medical-order-templates');
+    Route::post('/admin/config/medical-order-templates', [\App\Http\Controllers\AdminConfigController::class,'storeMedicalOrderTemplate'])->name('admin.config.medical-order-templates.store');
+    Route::put('/admin/config/medical-order-templates/{medicalOrderTemplate}', [\App\Http\Controllers\AdminConfigController::class,'updateMedicalOrderTemplate'])->name('admin.config.medical-order-templates.update');
+    Route::patch('/admin/config/medical-order-templates/{medicalOrderTemplate}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleMedicalOrderTemplate'])->name('admin.config.medical-order-templates.toggle');
 
     Route::get('/admin/config/countries', [\App\Http\Controllers\AdminConfigController::class,'countries'])->name('admin.config.countries');
     Route::post('/admin/config/countries', [\App\Http\Controllers\AdminConfigController::class,'storeCountry'])->name('admin.config.countries.store');
@@ -128,6 +149,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/config/provinces/{province}/cities', [\App\Http\Controllers\AdminConfigController::class,'apiCities'])->name('api.config.cities');
     Route::get('/api/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'apiPatientTypes'])->name('api.config.patient-types');
     Route::get('/api/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'apiInsuranceProviders'])->name('api.config.insurance-providers');
+        Route::get('/api/config/holidays', [\App\Http\Controllers\AdminConfigController::class,'apiHolidays'])->name('api.config.holidays');
+    Route::get('/api/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'apiAppointmentReasons'])->name('api.config.appointment-reasons');
+        Route::get('/api/config/medical-order-templates/active', [\App\Http\Controllers\AdminConfigController::class,'apiActiveMedicalOrderTemplates'])->name('api.config.medical-order-templates.active');
     });
     
     // Rutas del perfil

@@ -6,10 +6,23 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2'
 
 const showingNavigationDropdown = ref(false);
 const sidebarCollapsed = ref(false);
-const openMenus = ref({ doctors:false, admin:false, config:false });
+const openDoctors = ref(false);
+const openAdmin = ref(false);
+const openConfig = ref(false);
+
+// Computed helpers para evitar que "Administración" se active cuando estamos
+// dentro de admin.config.* (p.ej. admin.config.holidays)
+const isAdminSection = computed(() => {
+    try {
+        return route().current('admin.*') && !route().current('admin.config.*')
+    } catch (e) {
+        return false
+    }
+})
 
 // Persistencia en localStorage
 onMounted(() => {
@@ -24,16 +37,28 @@ watch(sidebarCollapsed, (val) => {
 });
 const page = usePage();
 
+// Mostrar flashes globales (toasts) con SweetAlert2
+const flash = computed(() => (page && page.props && page.props.value ? page.props.value.flash : null))
+watch(flash, (f) => {
+    // flashes globales
+    if (!f) return
+    if (f.success) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: f.success, showConfirmButton: false, timer: 2500, timerProgressBar: true })
+    } else if (f.error) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: f.error, showConfirmButton: false, timer: 3500, timerProgressBar: true })
+    }
+}, { immediate: true })
+
 // Abrir automáticamente el menú doctores si la ruta coincide
 onMounted(() => {
     if (route().current('doctors.*') || route().current('doctor-schedules.*')) {
-        openMenus.value.doctors = true;
+        openDoctors.value = true;
     }
-    if (route().current('admin.*')) {
-        openMenus.value.admin = true;
+    if (isAdminSection.value) {
+        openAdmin.value = true;
     }
     if (route().current('admin.config.*')) {
-        openMenus.value.config = true;
+        openConfig.value = true;
     }
 });
 
@@ -50,7 +75,7 @@ const hasRole = (roles) => {
 <template>
     <div class="min-h-screen bg-gray-100 flex">
         <!-- Sidebar -->
-    <aside :class="['hidden md:flex md:flex-col bg-white border-r border-gray-200 min-h-screen fixed z-[60] left-0 top-0 transition-all duration-200 overflow-visible shadow-sm', sidebarCollapsed ? 'md:w-16 sidebar-collapsed' : 'md:w-52']">
+    <aside :class="['hidden md:flex md:flex-col bg-white border-r border-gray-200 min-h-screen fixed z-[60] left-0 top-0 transition-all duration-200 shadow-sm', sidebarCollapsed ? 'md:w-16 sidebar-collapsed' : 'md:w-52']">
             <div class="flex items-center h-16 px-2 border-b border-gray-100 justify-between gap-1">
                 <Link :href="route('dashboard')" class="flex items-center">
                     <ApplicationLogo class="block h-12 w-auto min-w-8 fill-current text-gray-800" />
@@ -59,7 +84,7 @@ const hasRole = (roles) => {
                     <svg xmlns="http://www.w3.org/2000/svg" :class="['h-8 w-8 text-gray-600 transition-transform duration-200 drop-shadow-sm', sidebarCollapsed ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
                 </button>
             </div>
-            <nav class="flex-1 flex flex-col px-2 py-4 gap-1 overflow-y-auto overflow-visible">
+            <nav class="flex-1 flex flex-col px-2 py-4 gap-1 overflow-y-auto" style="max-height: calc(100vh - 4rem);">
                 <div class="relative group" >
                     <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                         <span class="flex items-center">
@@ -91,15 +116,15 @@ const hasRole = (roles) => {
                 </div>
                 <!-- Menú desplegable Doctores -->
                 <div v-if="hasRole(['administrador','recepcionista','medico'])" class="relative group">
-                    <button type="button" @click="!sidebarCollapsed && (openMenus.doctors = !openMenus.doctors)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', (route().current('doctors.*')||route().current('doctor-schedules.*')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
+                    <button type="button" @click="!sidebarCollapsed && (openDoctors = !openDoctors)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', (route().current('doctors.*')||route().current('doctor-schedules.*')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
                         <!-- <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" stroke-linecap="round" stroke-linejoin="round"/></svg> -->
                         <span v-if="!sidebarCollapsed" class="flex-1">Doctores</span>
-                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openMenus.doctors ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openDoctors ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </button>
                     <!-- Submenú expandido (sidebar ancho) -->
                     <transition name="fade" mode="out-in">
-                        <div v-show="openMenus.doctors && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
+                        <div v-show="openDoctors && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
                             <NavLink v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Lista</NavLink>
                             <NavLink v-if="hasRole(['administrador','medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</NavLink>
                         </div>
@@ -114,15 +139,15 @@ const hasRole = (roles) => {
                 </div>
                 <!-- Menú desplegable Administración -->
                 <div v-if="hasRole(['administrador'])" class="relative group">
-                    <button type="button" @click="!sidebarCollapsed && (openMenus.admin = !openMenus.admin)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', route().current('admin.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
+                    <button type="button" @click="!sidebarCollapsed && (openAdmin = !openAdmin)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', isAdminSection ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" /></svg>
                         <!-- <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18" stroke-linecap="round" stroke-linejoin="round"/></svg> -->
                         <span v-if="!sidebarCollapsed" class="flex-1">Administración</span>
-                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openMenus.admin ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openAdmin ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </button>
                     <!-- Submenú (sidebar ancho) -->
-                    <transition name="fade" mode="out-in">
-                        <div v-show="openMenus.admin && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
+                        <transition name="fade" mode="out-in">
+                        <div v-show="openAdmin && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
                             <NavLink :href="route('admin.index')" :active="route().current('admin.index')">Generales</NavLink>
                             <NavLink :href="route('admin.users')" :active="route().current('admin.users')">Gestión Usuarios</NavLink>
                             <NavLink :href="route('admin.specialties')" :active="route().current('admin.specialties')">Especialidades Médicas</NavLink>
@@ -133,33 +158,39 @@ const hasRole = (roles) => {
                     <!-- Flyout colapsado -->
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
-                            <Link :href="route('admin.index')" class="submenu-item" :class="route().current('admin.index') ? 'active' : ''">Generales</Link>
-                            <Link :href="route('admin.users')" class="submenu-item" :class="route().current('admin.users') ? 'active' : ''">Gestión Usuarios</Link>
-                            <Link :href="route('admin.specialties')" class="submenu-item" :class="route().current('admin.specialties') ? 'active' : ''">Especialidades Médicas</Link>
-                            <Link :href="route('admin.reports')" class="submenu-item" :class="route().current('admin.reports') ? 'active' : ''">Reportes</Link>
-                            <Link :href="route('admin.config.clinic')" class="submenu-item" :class="route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
+                            <Link :href="route('admin.index')" class="submenu-item" :class="isAdminSection && route().current('admin.index') ? 'active' : ''">Generales</Link>
+                            <Link :href="route('admin.users')" class="submenu-item" :class="isAdminSection && route().current('admin.users') ? 'active' : ''">Gesti f3n Usuarios</Link>
+                            <Link :href="route('admin.specialties')" class="submenu-item" :class="isAdminSection && route().current('admin.specialties') ? 'active' : ''">Especialidades M e9dicas</Link>
+                            <Link :href="route('admin.reports')" class="submenu-item" :class="isAdminSection && route().current('admin.reports') ? 'active' : ''">Reportes</Link>
+                            <Link :href="route('admin.config.clinic')" class="submenu-item" :class="isAdminSection && route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
                         </div>
                     </div>
                 </div>
                 <!-- Menú desplegable Configuración -->
                 <div v-if="hasRole(['administrador'])" class="relative group">
-                    <button type="button" @click="!sidebarCollapsed && (openMenus.config = !openMenus.config)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', route().current('admin.config.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
+                    <button type="button" @click="!sidebarCollapsed && (openConfig = !openConfig)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', route().current('admin.config.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg>
                         <!-- <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.757.426 1.757 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.757-.426-1.757-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.275.07 2.573-1.065z" stroke-linecap="round" stroke-linejoin="round"/></svg> -->
                         <span v-if="!sidebarCollapsed" class="flex-1">Configuración</span>
-                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openMenus.config ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openConfig ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </button>
                     <transition name="fade" mode="out-in">
-                        <div v-show="openMenus.config && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
+                        <div v-show="openConfig && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
                             <NavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</NavLink>
                             <NavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</NavLink>
+                            <NavLink :href="route('admin.config.holidays')" :active="route().current('admin.config.holidays')">Feriados</NavLink>
+                            <NavLink :href="route('admin.config.appointment-reasons')" :active="route().current('admin.config.appointment-reasons')">Motivos de Turnos</NavLink>
                             <NavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</NavLink>
+                            <NavLink :href="route('admin.config.medical-order-templates')" :active="route().current('admin.config.medical-order-templates')">Plantillas Ordenes</NavLink>
                         </div>
                     </transition>
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
                             <Link :href="route('admin.config.patient-types')" class="submenu-item" :class="route().current('admin.config.patient-types') ? 'active' : ''">Tipos de Paciente</Link>
                             <Link :href="route('admin.config.insurance-providers')" class="submenu-item" :class="route().current('admin.config.insurance-providers') ? 'active' : ''">Obras Sociales</Link>
+                            <Link :href="route('admin.config.holidays')" class="submenu-item" :class="route().current('admin.config.holidays') ? 'active' : ''">Feriados</Link>
+                            <Link :href="route('admin.config.appointment-reasons')" class="submenu-item" :class="route().current('admin.config.appointment-reasons') ? 'active' : ''">Motivos de Turnos</Link>
+                            <Link :href="route('admin.config.medical-order-templates')" class="submenu-item" :class="route().current('admin.config.medical-order-templates') ? 'active' : ''">Plantillas Ordenes</Link>
                             <Link :href="route('admin.config.countries')" class="submenu-item" :class="route().current('admin.config.countries') ? 'active' : ''">Países</Link>
                         </div>
                     </div>
@@ -205,13 +236,13 @@ const hasRole = (roles) => {
                 </div>
             <!-- Menú hamburguesa solo en móvil -->
             <div :class="{ block: showingNavigationDropdown, hidden: !showingNavigationDropdown }" class="md:hidden bg-white border-b border-gray-100">
-                <div class="space-y-1 pb-3 pt-2 px-4">
+                <div class="space-y-1 pb-3 pt-2 px-4" style="max-height: calc(100vh - 4rem); overflow-y:auto;">
                     <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">Dashboard</ResponsiveNavLink>
                     <ResponsiveNavLink :href="route('appointments.index')" :active="route().current('appointments.*')">Citas</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'medico', 'recepcionista'])" :href="route('patients.index')" :active="route().current('patients.*')">Pacientes</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Doctores</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</ResponsiveNavLink>
-                    <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="route().current('admin.*')">Administración</ResponsiveNavLink>
+                    <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="isAdminSection">Administración</ResponsiveNavLink>
                     <div class="border-t border-gray-200 pt-4">
                         <div class="flex items-center gap-2 mb-2">
                             <img v-if="$page.props.auth.user.profile_photo_path" :src="'/storage/' + $page.props.auth.user.profile_photo_path" alt="Foto de perfil" class="h-10 w-10 rounded-full object-cover border" />
@@ -230,20 +261,28 @@ const hasRole = (roles) => {
                     </div>
                 </div>
             </div>
-                <div :class="{ block: showingNavigationDropdown, hidden: !showingNavigationDropdown }" class="md:hidden">
-                    <div class="space-y-1 pb-3 pt-2 px-4">
+            <div :class="{ block: showingNavigationDropdown, hidden: !showingNavigationDropdown }" class="md:hidden">
+                <div class="space-y-1 pb-3 pt-2 px-4" style="max-height: calc(100vh - 4rem); overflow-y:auto;">
                         <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">Dashboard</ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('appointments.index')" :active="route().current('appointments.*')">Citas</ResponsiveNavLink>
                         <ResponsiveNavLink v-if="hasRole(['administrador', 'medico', 'recepcionista'])" :href="route('patients.index')" :active="route().current('patients.*')">Pacientes</ResponsiveNavLink>
                         <ResponsiveNavLink v-if="hasRole(['administrador', 'recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Doctores</ResponsiveNavLink>
                         <ResponsiveNavLink v-if="hasRole(['administrador', 'medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="route().current('admin.*')">Administración</ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="isAdminSection">Administración</ResponsiveNavLink>
                         <div class="border-t border-gray-200 pt-4">
                             <div class="text-base font-medium text-gray-800">{{ $page.props.auth.user.name }}</div>
                             <div class="text-sm font-medium text-gray-500">{{ $page.props.auth.user.email }}</div>
                             <div class="mt-3 space-y-1">
                                 <ResponsiveNavLink :href="route('profile.edit')">Perfil</ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('logout')" method="post" as="button">Cerrar sesión</ResponsiveNavLink>
+                            </div>
+                            <div class="mt-4 border-t pt-3 space-y-1">
+                    <ResponsiveNavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.config.holidays')" :active="route().current('admin.config.holidays')">Feriados</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.config.appointment-reasons')" :active="route().current('admin.config.appointment-reasons')">Motivos de Turnos</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.config.medical-order-templates')" :active="route().current('admin.config.medical-order-templates')">Plantillas Ordenes</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</ResponsiveNavLink>
                             </div>
                         </div>
                     </div>

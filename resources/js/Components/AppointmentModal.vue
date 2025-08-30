@@ -84,10 +84,13 @@
                                                             <div v-if="errors.status" class="mt-1 text-sm text-red-600">{{ errors.status }}</div>
 
                                                             <div class="mt-4">
-                                                                <label for="reason" class="block text-sm font-medium text-gray-700">Motivo de la consulta</label>
-                                                                <textarea id="reason" v-model="form.reason" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Describe el motivo de la consulta..."></textarea>
-                                                                <div v-if="errors.reason" class="mt-1 text-sm text-red-600">{{ errors.reason }}</div>
-                                                            </div>
+                                                                    <label for="reason" class="block text-sm font-medium text-gray-700">Motivo de la consulta</label>
+                                                                    <select id="reason" v-model="form.reason_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                                        <option value="">Seleccionar motivo</option>
+                                                                        <option v-for="r in reasons" :key="r.id" :value="r.id">{{ r.name }}</option>
+                                                                    </select>
+                                                                    <div v-if="errors.reason" class="mt-1 text-sm text-red-600">{{ errors.reason }}</div>
+                                                                </div>
 
                                                             <div class="mt-4">
                                                                 <label for="notes" class="block text-sm font-medium text-gray-700">Notas adicionales</label>
@@ -364,6 +367,7 @@ watch(() => props.show, (newValue) => {
         if (props.appointment) {
             populateForm()
         }
+    loadReasons()
     }
     errors.value = {}
 })
@@ -394,6 +398,7 @@ const resetForm = () => {
     filteredDoctors.value = []
     availableSlots.value = []
     availableDays.value = []
+    reasons.value = [] // Initialize reasons array
 }
 
 // Función para cargar doctores por especialidad (para nuevas citas)
@@ -460,6 +465,13 @@ const loadAvailableDays = async (specialtyId) => {
     } finally {
         loadingDays.value = false
     }
+}
+
+const loadReasons = async () => {
+    try {
+        const resp = await axios.get(route('api.config.appointment-reasons'))
+        reasons.value = resp.data || []
+    } catch (e) { reasons.value = [] }
 }
 
 // Función para verificar si una fecha está disponible
@@ -604,6 +616,7 @@ const submitForm = async () => {
     const data = {
         ...form.value,
         appointment_date: appointmentDateTime,
+    reason_id: form.value.reason, // Add reason_id to the data
     }
 
     // Remover campos que no necesitamos enviar
