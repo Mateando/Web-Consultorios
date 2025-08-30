@@ -498,29 +498,13 @@ const appointmentSaved = () => {
 
 // Función para cargar días disponibles por especialidad
 const loadAvailableDays = async (specialtyId) => {
-    console.log('🚀 Index.vue - Cargando días disponibles para especialidad:', specialtyId)
-    
-    if (!specialtyId) {
-        availableDays.value = []
-        console.log('❌ No hay especialidad, limpiando días disponibles')
-        return
-    }
-    
     loadingAvailableDays.value = true
     
     try {
         const response = await axios.get('/api/specialty-available-days', {
             params: { specialty_id: specialtyId }
         })
-        
-        console.log('📡 Respuesta completa del backend:', response.data)
-        console.log('📅 Días disponibles recibidos:', response.data.available_days)
-        console.log('🔢 Tipo de datos:', typeof response.data.available_days)
-        console.log('📊 Es array?:', Array.isArray(response.data.available_days))
-        
         availableDays.value = response.data.available_days || []
-        
-        console.log('✅ Días disponibles guardados en state:', availableDays.value)
     } catch (error) {
         console.error('❌ Error loading available days:', error)
         availableDays.value = []

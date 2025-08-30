@@ -79,9 +79,27 @@ class AppointmentController extends Controller
             ];
         });
 
-        $doctors = Doctor::active()->with(['user', 'specialties'])->get();
+        // Sólo incluir médicos activos que además tengan horarios activos configurados
+        $doctors = Doctor::active()
+            ->whereHas('schedules', function($q) { $q->where('is_active', true); })
+            ->with(['user', 'specialties'])
+            ->get();
         $patients = Patient::active()->with('user')->get();
-        $specialties = Specialty::active()->get();
+        // Sólo incluir especialidades que tengan al menos un médico activo con horarios para esa misma especialidad
+        $specialties = Specialty::active()
+            ->with(['doctors.user', 'doctors.schedules'])
+            ->get()
+            ->filter(function($sp) {
+                foreach ($sp->doctors as $doc) {
+                    if (!$doc->user || !$doc->user->is_active) continue;
+                    foreach ($doc->schedules as $sch) {
+                        if ($sch->is_active && $sch->specialty_id == $sp->id) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })->values();
 
         return Inertia::render('Appointments/Index', [
             'appointments' => $appointments,
@@ -110,9 +128,27 @@ class AppointmentController extends Controller
             abort(403, 'No tienes permisos para crear citas.');
         }
         
-        $doctors = Doctor::active()->with(['user', 'specialties'])->get();
+        // Sólo incluir médicos con horarios activos (no mostrar médicos sin horarios configurados)
+        $doctors = Doctor::active()
+            ->whereHas('schedules', function($q) { $q->where('is_active', true); })
+            ->with(['user', 'specialties'])
+            ->get();
         $patients = Patient::active()->with('user')->get();
-        $specialties = Specialty::active()->get();
+        // Filtrar especialidades que tienen al menos un doctor activo con horario para esa especialidad
+        $specialties = Specialty::active()
+            ->with(['doctors.user', 'doctors.schedules'])
+            ->get()
+            ->filter(function($sp) {
+                foreach ($sp->doctors as $doc) {
+                    if (!$doc->user || !$doc->user->is_active) continue;
+                    foreach ($doc->schedules as $sch) {
+                        if ($sch->is_active && $sch->specialty_id == $sp->id) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })->values();
         
         return Inertia::render('Appointments/Create', [
             'doctors' => $doctors,
@@ -166,39 +202,72 @@ class AppointmentController extends Controller
             }
         }
 
-        // NUEVA VALIDACIÓN: Verificar que la fecha y hora estén dentro del horario del doctor
+        // NUEVA VALIDACIÓN: Verificar que la fecha y hora estén dentro de alguno de los horarios
+        // activos del doctor para ese día (y especialidad si se especificó). Soportar múltiples
+        // franjas en el mismo día (por ejemplo mañana y tarde).
         $appointmentDate = Carbon::parse($request->appointment_date);
         $dayOfWeek = strtolower($appointmentDate->format('l')); // monday, tuesday, etc.
         $timeSlot = $appointmentDate->format('H:i');
-        
-        // Verificar que el doctor atienda ese día
-        $schedule = $doctor->schedules()
+
+        // Construir query de horarios que coincidan en día y estén activos. Si se indicó
+        // specialty_id, filtrar también por ella para evitar validar contra horarios de otra especialidad.
+        $schedulesQuery = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
-            ->where('is_active', true)
-            ->first();
-            
-        if (!$schedule) {
+            ->where('is_active', true);
+
+        if ($request->specialty_id) {
+            $schedulesQuery->where('specialty_id', $request->specialty_id);
+        }
+
+        $schedules = $schedulesQuery->get();
+
+        if ($schedules->isEmpty()) {
             return redirect()->back()->withErrors([
-                'appointment_date' => "El doctor {$doctor->user->name} no atiende los " . $this->translateDayToSpanish($dayOfWeek) . "."
+                'appointment_date' => "El doctor {$doctor->user->name} no atiende los " . $this->translateDayToSpanish($dayOfWeek) . " para la especialidad seleccionada."
             ]);
         }
-        
-        // Verificar que la hora esté dentro del horario del doctor
-        $startTime = Carbon::parse($schedule->start_time)->format('H:i');
-        $endTime = Carbon::parse($schedule->end_time)->format('H:i');
-        
-        if ($timeSlot < $startTime || $timeSlot >= $endTime) {
-            return redirect()->back()->withErrors([
-                'appointment_date' => "La hora seleccionada ({$timeSlot}) está fuera del horario de atención del doctor ({$startTime} - {$endTime})."
-            ]);
+
+        // Generar todos los slots posibles combinando cada horario activo
+        $allSlots = [];
+        foreach ($schedules as $sch) {
+            $slotsForSchedule = $sch->getAvailableTimeSlots();
+            if (!empty($slotsForSchedule)) {
+                $allSlots = array_merge($allSlots, $slotsForSchedule);
+            }
         }
-        
-        // Verificar que la hora sea un slot válido según la duración de citas del doctor
-        $availableSlots = $schedule->getAvailableTimeSlots();
-        if (!in_array($timeSlot, $availableSlots)) {
-            return redirect()->back()->withErrors([
-                'appointment_date' => "La hora seleccionada ({$timeSlot}) no corresponde a un horario de cita válido. Las citas son cada {$schedule->appointment_duration} minutos."
-            ]);
+
+        // Normalizar: quitar duplicados y ordenar
+        $allSlots = array_values(array_unique($allSlots));
+        sort($allSlots);
+
+        // Si el slot seleccionado no está entre los slots posibles, construir mensaje útil
+        if (!in_array($timeSlot, $allSlots)) {
+            // Evaluar si la hora cae dentro de alguna franja horaria (pero no coincide con un slot
+            // válido por la duración), o si está fuera de todas las franjas.
+            $fallsWithinInterval = false;
+            $intervals = [];
+            $refSchedule = null;
+            foreach ($schedules as $sch) {
+                $start = Carbon::parse($sch->start_time)->format('H:i');
+                $end = Carbon::parse($sch->end_time)->format('H:i');
+                $intervals[] = "{$start} - {$end}";
+                if ($timeSlot >= $start && $timeSlot < $end) {
+                    $fallsWithinInterval = true;
+                    $refSchedule = $sch;
+                    break;
+                }
+            }
+
+            if ($fallsWithinInterval && $refSchedule) {
+                return redirect()->back()->withErrors([
+                    'appointment_date' => "La hora seleccionada ({$timeSlot}) no corresponde a un horario de cita válido para la duración configurada. Las citas son cada {$refSchedule->appointment_duration} minutos."
+                ]);
+            } else {
+                $intervalText = implode(' ; ', $intervals);
+                return redirect()->back()->withErrors([
+                    'appointment_date' => "La hora seleccionada ({$timeSlot}) está fuera del horario de atención del doctor ({$intervalText})."
+                ]);
+            }
         }
         
         // Verificar que no exista otra cita en el mismo horario
@@ -293,9 +362,25 @@ class AppointmentController extends Controller
         }
         
         // Para staff, vista completa de edición
-        $doctors = Doctor::active()->with(['user', 'specialties'])->get();
+        $doctors = Doctor::active()
+            ->whereHas('schedules', function($q) { $q->where('is_active', true); })
+            ->with(['user', 'specialties'])
+            ->get();
         $patients = Patient::active()->with('user')->get();
-        $specialties = Specialty::active()->get();
+        $specialties = Specialty::active()
+            ->with(['doctors.user', 'doctors.schedules'])
+            ->get()
+            ->filter(function($sp) {
+                foreach ($sp->doctors as $doc) {
+                    if (!$doc->user || !$doc->user->is_active) continue;
+                    foreach ($doc->schedules as $sch) {
+                        if ($sch->is_active && $sch->specialty_id == $sp->id) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })->values();
         
         return Inertia::render('Appointments/Edit', [
             'appointment' => $appointment,
@@ -455,11 +540,17 @@ class AppointmentController extends Controller
             return response()->json(['doctors' => []]);
         }
         
-        $query = Doctor::withSpecialty($specialtyId)->with(['user', 'specialties']);
+    $query = Doctor::withSpecialty($specialtyId)->with(['user', 'specialties']);
         
         // Filtrar doctores activos
         $query->whereHas('user', function($q) {
             $q->where('is_active', true);
+        });
+
+        // Excluir doctores que no tengan horarios activos para esta especialidad
+        $query->whereHas('schedules', function($q) use ($specialtyId) {
+            $q->where('specialty_id', $specialtyId)
+              ->where('is_active', true);
         });
         
         // Si se proporciona una fecha, filtrar por doctores que atienden ese día Y especialidad
@@ -603,6 +694,19 @@ class AppointmentController extends Controller
         // Filtrar slots disponibles
         $availableSlots = array_values(array_diff($allSlots, $bookedSlots));
         
+        // Si la fecha es hoy, eliminar los slots que ya pasaron respecto al tiempo actual
+        try {
+            $requestedDate = Carbon::parse($request->date);
+            if ($requestedDate->isToday()) {
+                $nowTime = Carbon::now()->format('H:i');
+                $availableSlots = array_values(array_filter($availableSlots, function ($slot) use ($nowTime) {
+                    return $slot > $nowTime; // mantener solo slots estrictamente posteriores al momento actual
+                }));
+            }
+        } catch (\Exception $e) {
+            // Si parse falla, no aplicar el filtro de tiempo
+        }
+
         // Usar el primer schedule como referencia para duration y meta info
         $referenceSchedule = $schedules->first();
 

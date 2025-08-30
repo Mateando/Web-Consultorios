@@ -46,8 +46,7 @@ const isDateAvailable = (dateInfo) => {
 
 const initCalendar = () => {
     if (calendarEl.value && !calendar) {
-        console.log('🗓️ Inicializando calendario con appointments:', props.appointments)
-        console.log('📊 Cantidad de appointments:', props.appointments?.length || 0)
+    // Debug logs removed: avoid noisy console output in production
         
         calendar = new Calendar(calendarEl.value, {
             plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
@@ -63,7 +62,6 @@ const initCalendar = () => {
             events: props.appointments.map(appointment => {
                 // Si el appointment ya viene formateado desde el backend (con start, title, etc.)
                 if (appointment.start && appointment.title) {
-                    console.log('✅ Evento formateado:', appointment.title, 'en', appointment.start)
                     return {
                         id: appointment.id,
                         title: appointment.title,
@@ -74,7 +72,6 @@ const initCalendar = () => {
                     }
                 }
                 // Si viene en formato raw (para compatibilidad)
-                console.log('🔄 Evento raw:', appointment.patient_name, '-', appointment.doctor_name)
                 return {
                     id: appointment.id,
                     title: `${appointment.patient_name || 'Paciente'} - ${appointment.doctor_name || 'Doctor'}`,
