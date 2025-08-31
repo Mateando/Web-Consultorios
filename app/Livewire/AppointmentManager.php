@@ -33,6 +33,7 @@ class AppointmentManager extends Component
     // Filtros
     public $filterDate;
     public $filterDoctor;
+    public $filterSpecialty;
     public $filterStatus;
     public $filterPatient;
 
@@ -65,6 +66,12 @@ class AppointmentManager extends Component
             $query->where('doctor_id', $this->filterDoctor);
         }
 
+        if ($this->filterSpecialty) {
+            $query->whereHas('doctor.specialties', function ($q) {
+                $q->where('specialties.id', $this->filterSpecialty);
+            });
+        }
+
         if ($this->filterStatus) {
             $query->where('status', $this->filterStatus);
         }
@@ -87,13 +94,89 @@ class AppointmentManager extends Component
 
         $appointments = $query->orderBy('appointment_date', 'asc')->paginate(10);
 
+        // Preparar listas dependientes para los filtros (consultas explícitas)
+        // Especialidades: si hay doctor seleccionado, solo las del doctor; si no, todas activas
+        if ($this->filterDoctor) {
+            $doc = Doctor::find($this->filterDoctor);
+            if ($doc) {
+                $specialtiesList = $doc->specialties()->where('is_active', true)->get();
+                // Si la specialty seleccionada no pertenece al doctor, resetearla
+                if ($this->filterSpecialty && !$specialtiesList->contains('id', $this->filterSpecialty)) {
+                    $this->filterSpecialty = null;
+                }
+            } else {
+                $specialtiesList = Specialty::active()->get();
+            }
+        } else {
+            $specialtiesList = Specialty::active()->get();
+        }
+
+        // Doctores: si hay specialty seleccionada, solo doctores con esa especialidad; si no, todos disponibles
+        if ($this->filterSpecialty) {
+            $doctorsList = Doctor::with(['user', 'specialties'])
+                ->available()
+                ->whereHas('specialties', function ($q) {
+                    $q->where('specialties.id', $this->filterSpecialty)->where('specialties.is_active', true);
+                })->get();
+            // Si el doctor seleccionado no pertenece a la specialty, resetearlo
+            if ($this->filterDoctor) {
+                $doctorIds = $doctorsList->pluck('id')->all();
+                if (!in_array($this->filterDoctor, $doctorIds)) {
+                    $this->filterDoctor = null;
+                }
+            }
+        } else {
+            $doctorsList = Doctor::with(['user', 'specialties'])->available()->get();
+        }
+
         return view('livewire.appointment-manager', [
             'appointments' => $appointments,
             'patients' => Patient::with('user')->get(),
-            'doctors' => Doctor::with(['user', 'specialties'])->available()->get(),
-            'specialties' => Specialty::active()->get(),
+            'doctors' => $doctorsList,
+            'specialties' => $specialtiesList,
             'availableDoctors' => $this->getAvailableDoctors(),
         ]);
+    }
+
+    public function updatedFilterDoctor($value)
+    {
+        // Al cambiar doctor en los filtros, resetear paginación y limitar la especialidad
+        $this->resetPage();
+
+        if (!$value) {
+            // si se deselecciona doctor, recargar especialidades completas
+            $this->filterSpecialty = null;
+            return;
+        }
+
+        $doc = Doctor::with('specialties')->find($value);
+        if ($doc) {
+            $specialtyIds = $doc->specialties->pluck('id')->all();
+            if ($this->filterSpecialty && !in_array($this->filterSpecialty, $specialtyIds)) {
+                $this->filterSpecialty = null;
+            }
+        } else {
+            $this->filterSpecialty = null;
+        }
+    }
+
+    public function updatedFilterSpecialty($value)
+    {
+        // Al cambiar especialidad en los filtros, resetear paginación y resetear doctor si no pertenece
+        $this->resetPage();
+
+        if (!$value) {
+            $this->filterDoctor = null;
+            return;
+        }
+
+        $doctorIds = Doctor::whereHas('specialties', function ($q) use ($value) {
+            $q->where('specialties.id', $value);
+        })->available()->pluck('id')->all();
+
+        if ($this->filterDoctor && !in_array($this->filterDoctor, $doctorIds)) {
+            $this->filterDoctor = null;
+        }
     }
 
     public function openCreateForm()

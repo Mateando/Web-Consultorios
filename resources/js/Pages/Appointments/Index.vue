@@ -47,7 +47,7 @@
                                 >
                                     <option value="">Todos los doctores</option>
                                     <option
-                                        v-for="doctor in doctors"
+                                        v-for="doctor in filteredDoctors"
                                         :key="doctor.id"
                                         :value="doctor.id"
                                     >
@@ -65,7 +65,7 @@
                                 >
                                     <option value="">Todas las especialidades</option>
                                     <option
-                                        v-for="specialty in specialties"
+                                        v-for="specialty in filteredSpecialties"
                                         :key="specialty.id"
                                         :value="specialty.id"
                                     >
@@ -281,6 +281,7 @@
                             :doctors="doctors"
                             :patients="patients"
                             :specialties="specialties"
+                            :initial-specialty-id="filters.specialty_id"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
@@ -324,6 +325,55 @@ const filters = ref({
     status: props.filters?.status || '',
     start_date: props.filters?.start_date || '',
     end_date: props.filters?.end_date || '',
+})
+
+// Computed: doctores filtrados según specialty selecccionada
+const filteredDoctors = computed(() => {
+    if (!filters.value.specialty_id) {
+        return props.doctors || []
+    }
+
+    return (props.doctors || []).filter(d => {
+        return d.specialties && d.specialties.some(s => String(s.id) === String(filters.value.specialty_id))
+    })
+})
+
+// Computed: especialidades filtradas según doctor seleccionado
+const filteredSpecialties = computed(() => {
+    if (!filters.value.doctor_id) {
+        return props.specialties || []
+    }
+
+    const doc = (props.doctors || []).find(d => String(d.id) === String(filters.value.doctor_id))
+    if (!doc || !doc.specialties) return []
+    // Devolver solo especialidades activas del doctor (props.specialties tiene is_active)
+    return doc.specialties.filter(s => s.is_active)
+})
+
+// Watchers: si la selección de doctor cambia, y la specialty actual no pertenece al doctor, resetearla
+watch(() => filters.value.doctor_id, (newDoctor) => {
+    if (!newDoctor) return
+    const doc = (props.doctors || []).find(d => String(d.id) === String(newDoctor))
+    if (!doc) {
+        filters.value.specialty_id = ''
+        applyFilters()
+        return
+    }
+    const specialtyIds = (doc.specialties || []).map(s => String(s.id))
+    if (filters.value.specialty_id && !specialtyIds.includes(String(filters.value.specialty_id))) {
+        filters.value.specialty_id = ''
+        applyFilters()
+    }
+})
+
+// Si cambia la specialty y el doctor seleccionado no pertenece, resetear doctor
+watch(() => filters.value.specialty_id, (newSpecialty) => {
+    if (!newSpecialty) return
+    const matchingDoctors = filteredDoctors.value.map(d => String(d.id))
+    if (filters.value.doctor_id && !matchingDoctors.includes(String(filters.value.doctor_id))) {
+        filters.value.doctor_id = ''
+        applyFilters()
+    }
 })
 
 const calendarEvents = computed(() => {

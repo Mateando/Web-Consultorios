@@ -150,19 +150,15 @@ const hasRole = (roles) => {
                         <div v-show="openAdmin && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
                             <NavLink :href="route('admin.index')" :active="route().current('admin.index')">Generales</NavLink>
                             <NavLink :href="route('admin.users')" :active="route().current('admin.users')">Gestión Usuarios</NavLink>
-                            <NavLink :href="route('admin.specialties')" :active="route().current('admin.specialties')">Especialidades Médicas</NavLink>
                             <NavLink :href="route('admin.reports')" :active="route().current('admin.reports')">Reportes</NavLink>
-                            <NavLink :href="route('admin.config.clinic')" :active="route().current('admin.config.clinic')">Consultorio</NavLink>
                         </div>
                     </transition>
                     <!-- Flyout colapsado -->
-                    <div v-if="sidebarCollapsed" class="submenu-flyout">
+                        <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
                             <Link :href="route('admin.index')" class="submenu-item" :class="isAdminSection && route().current('admin.index') ? 'active' : ''">Generales</Link>
                             <Link :href="route('admin.users')" class="submenu-item" :class="isAdminSection && route().current('admin.users') ? 'active' : ''">Gesti f3n Usuarios</Link>
-                            <Link :href="route('admin.specialties')" class="submenu-item" :class="isAdminSection && route().current('admin.specialties') ? 'active' : ''">Especialidades M e9dicas</Link>
                             <Link :href="route('admin.reports')" class="submenu-item" :class="isAdminSection && route().current('admin.reports') ? 'active' : ''">Reportes</Link>
-                            <Link :href="route('admin.config.clinic')" class="submenu-item" :class="isAdminSection && route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
                         </div>
                     </div>
                 </div>
@@ -176,22 +172,30 @@ const hasRole = (roles) => {
                     </button>
                     <transition name="fade" mode="out-in">
                         <div v-show="openConfig && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
+                            <NavLink :href="route('admin.config.generales')" :active="route().current('admin.config.generales')">Generales</NavLink>
+                            <NavLink :href="route('admin.config.clinic')" :active="route().current('admin.config.clinic')">Consultorio</NavLink>
+                            <NavLink :href="route('admin.config.study-types')" :active="route().current('admin.config.study-types')">Tipos de Estudios</NavLink>
                             <NavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</NavLink>
                             <NavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</NavLink>
                             <NavLink :href="route('admin.config.holidays')" :active="route().current('admin.config.holidays')">Feriados</NavLink>
                             <NavLink :href="route('admin.config.appointment-reasons')" :active="route().current('admin.config.appointment-reasons')">Motivos de Turnos</NavLink>
-                            <NavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</NavLink>
                             <NavLink :href="route('admin.config.medical-order-templates')" :active="route().current('admin.config.medical-order-templates')">Plantillas Ordenes</NavLink>
+                            <NavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</NavLink>
+                            <NavLink :href="route('admin.specialties')" :active="route().current('admin.specialties')">Especialidades Médicas</NavLink>
                         </div>
                     </transition>
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
+                            <Link :href="route('admin.config.generales')" class="submenu-item" :class="route().current('admin.config.generales') ? 'active' : ''">Generales</Link>
+                            <Link :href="route('admin.config.clinic')" class="submenu-item" :class="route().current('admin.config.clinic') ? 'active' : ''">Consultorio</Link>
+                            <Link :href="route('admin.config.study-types')" class="submenu-item" :class="route().current('admin.config.study-types') ? 'active' : ''">Tipos de Estudios</Link>
                             <Link :href="route('admin.config.patient-types')" class="submenu-item" :class="route().current('admin.config.patient-types') ? 'active' : ''">Tipos de Paciente</Link>
                             <Link :href="route('admin.config.insurance-providers')" class="submenu-item" :class="route().current('admin.config.insurance-providers') ? 'active' : ''">Obras Sociales</Link>
                             <Link :href="route('admin.config.holidays')" class="submenu-item" :class="route().current('admin.config.holidays') ? 'active' : ''">Feriados</Link>
                             <Link :href="route('admin.config.appointment-reasons')" class="submenu-item" :class="route().current('admin.config.appointment-reasons') ? 'active' : ''">Motivos de Turnos</Link>
                             <Link :href="route('admin.config.medical-order-templates')" class="submenu-item" :class="route().current('admin.config.medical-order-templates') ? 'active' : ''">Plantillas Ordenes</Link>
                             <Link :href="route('admin.config.countries')" class="submenu-item" :class="route().current('admin.config.countries') ? 'active' : ''">Países</Link>
+                            <Link :href="route('admin.specialties')" class="submenu-item" :class="route().current('admin.specialties') ? 'active' : ''">Especialidades Médicas</Link>
                         </div>
                     </div>
                 </div>
@@ -277,12 +281,16 @@ const hasRole = (roles) => {
                                 <ResponsiveNavLink :href="route('logout')" method="post" as="button">Cerrar sesión</ResponsiveNavLink>
                             </div>
                             <div class="mt-4 border-t pt-3 space-y-1">
-                    <ResponsiveNavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('admin.config.holidays')" :active="route().current('admin.config.holidays')">Feriados</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('admin.config.appointment-reasons')" :active="route().current('admin.config.appointment-reasons')">Motivos de Turnos</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('admin.config.medical-order-templates')" :active="route().current('admin.config.medical-order-templates')">Plantillas Ordenes</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.generales')" :active="route().current('admin.config.generales')">Generales</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.clinic')" :active="route().current('admin.config.clinic')">Consultorio</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.study-types')" :active="route().current('admin.config.study-types')">Tipos de Estudios</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.patient-types')" :active="route().current('admin.config.patient-types')">Tipos de Paciente</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.insurance-providers')" :active="route().current('admin.config.insurance-providers')">Obras Sociales</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.holidays')" :active="route().current('admin.config.holidays')">Feriados</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.appointment-reasons')" :active="route().current('admin.config.appointment-reasons')">Motivos de Turnos</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.medical-order-templates')" :active="route().current('admin.config.medical-order-templates')">Plantillas Ordenes</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.config.countries')" :active="route().current('admin.config.countries')">Países</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('admin.specialties')" :active="route().current('admin.specialties')">Especialidades Médicas</ResponsiveNavLink>
                             </div>
                         </div>
                     </div>

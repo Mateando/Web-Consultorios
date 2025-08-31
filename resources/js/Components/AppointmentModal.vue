@@ -16,17 +16,26 @@
 
                                                         <!-- Step 1: Paciente -->
                                                         <div v-show="step === 1" class="mb-4">
-                                                            <label for="patient_id" class="block text-sm font-medium text-gray-700">Paciente</label>
-                                                            <select
-                                                                id="patient_id"
-                                                                v-model="form.patient_id"
-                                                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                            >
-                                                                <option value="">Seleccionar paciente</option>
-                                                                <option v-for="patient in patients" :key="patient.id" :value="patient.id">
-                                                                    {{ patient.user?.name || 'Paciente sin nombre' }} - {{ patient.user?.document_type?.toUpperCase() }} {{ patient.user?.document_number }}
-                                                                </option>
-                                                            </select>
+                                                            <label for="patient_search" class="block text-sm font-medium text-gray-700">Paciente</label>
+                                                            <div class="mt-1 relative">
+                                                                <input
+                                                                    id="patient_search"
+                                                                    type="search"
+                                                                    v-model="patientQuery"
+                                                                    @input="onPatientQueryChange"
+                                                                    placeholder="Buscar por nombre, documento o email..."
+                                                                    class="block w-full pr-10 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                />
+                                                                <div v-if="loadingPatients" class="absolute right-2 top-2 text-sm text-gray-500">Cargando...</div>
+                                                                <ul v-if="showPatientDropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md max-h-56 overflow-auto">
+                                                                    <li v-if="patientResults.length === 0" class="px-3 py-2 text-sm text-gray-500">Sin resultados</li>
+                                                                    <li v-for="p in patientResults" :key="p.id" @click="selectPatient(p)" class="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">
+                                                                        <div class="font-medium">{{ p.name || 'Paciente sin nombre' }}</div>
+                                                                        <div class="text-xs text-gray-500">{{ (p.document_type ? p.document_type.toUpperCase() + ' ' : '') + (p.document_number || '') }} {{ p.phone ? ' • ' + p.phone : '' }}</div>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                            <div v-if="form.patient_id" class="mt-2 text-sm text-green-600">Paciente seleccionado: {{ patientName }}</div>
                                                             <div v-if="errors.patient_id" class="mt-1 text-sm text-red-600">{{ errors.patient_id }}</div>
                                                         </div>
 
@@ -114,9 +123,9 @@
                                                             <p class="text-sm text-gray-700">Fecha y hora: <strong>{{ form.appointment_date }} {{ form.appointment_time }}</strong></p>
                                                             <p class="text-sm text-gray-700">Duración: <strong>{{ referenceDurationText }}</strong></p>
                                                             <p class="text-sm text-gray-700">Estado: <strong>{{ form.status }}</strong></p>
-                                                            <div v-if="form.reason" class="mt-3">
+                                                            <div v-if="reasonName" class="mt-3">
                                                                 <p class="text-sm font-medium text-gray-800">Motivo</p>
-                                                                <p class="text-sm text-gray-700">{{ form.reason }}</p>
+                                                                <p class="text-sm text-gray-700">{{ reasonName }}</p>
                                                             </div>
                                                             <div v-if="form.notes" class="mt-3">
                                                                 <p class="text-sm font-medium text-gray-800">Notas</p>
@@ -175,6 +184,7 @@ const props = defineProps({
     patients: Array,
     specialties: Array,
     selectedDate: String, // Fecha seleccionada del calendario
+    initialSpecialtyId: [String, Number],
 })
 
 const emit = defineEmits(['close', 'saved'])
@@ -186,6 +196,14 @@ const availableSlots = ref([])
 const loadingSlots = ref(false)
 const availableDays = ref([])
 const loadingDays = ref(false)
+// Appointment reasons
+const reasons = ref([])
+// Pacientes búsqueda dinámica
+const patientQuery = ref('')
+const patientResults = ref([])
+const loadingPatients = ref(false)
+const showPatientDropdown = ref(false)
+let patientDebounceTimer = null
 
 // Wizard state
 const step = ref(1)
@@ -204,6 +222,13 @@ const specialtyName = computed(() => {
 const doctorName = computed(() => {
     const d = filteredDoctors.value?.find(doc => doc.id === form.value.doctor_id) || props.doctors?.find(doc => doc.id === form.value.doctor_id)
     return d ? (d.name || '') : ''
+})
+
+const reasonName = computed(() => {
+    // Prefer explicit reason text if present (backwards compatibility), otherwise map from reasons list
+    if (form.value.reason) return form.value.reason
+    const r = reasons.value?.find(x => String(x.id) === String(form.value.reason_id))
+    return r ? r.name : ''
 })
 
 const isNextDisabled = computed(() => {
@@ -317,6 +342,40 @@ const printAppointment = () => {
     }, 250)
 }
 
+const onPatientQueryChange = () => {
+    // If user clears query, hide dropdown
+    if (!patientQuery.value) {
+        patientResults.value = []
+        showPatientDropdown.value = false
+        return
+    }
+
+    // Debounce requests
+    if (patientDebounceTimer) clearTimeout(patientDebounceTimer)
+    patientDebounceTimer = setTimeout(() => {
+        fetchPatients(patientQuery.value)
+    }, 350)
+}
+
+const fetchPatients = async (q) => {
+    loadingPatients.value = true
+    showPatientDropdown.value = true
+    try {
+        const res = await axios.get('/api/patients', { params: { q, limit: 20 } })
+        patientResults.value = res.data?.data || []
+    } catch (e) {
+        patientResults.value = []
+    } finally {
+        loadingPatients.value = false
+    }
+}
+
+const selectPatient = (p) => {
+    form.value.patient_id = p.id
+    patientQuery.value = p.name || ''
+    showPatientDropdown.value = false
+}
+
 const form = ref({
     patient_id: '',
     doctor_id: '',
@@ -367,6 +426,14 @@ watch(() => props.show, (newValue) => {
         if (props.appointment) {
             populateForm()
         }
+        // Si se abre el modal para crear y hay specialty inicial, aplicarla
+        if (!props.appointment && props.initialSpecialtyId) {
+            // Esperar un tick para asegurar que form fue reseteado
+            nextTick(() => {
+                form.value.specialty_id = props.initialSpecialtyId
+                onSpecialtyChange()
+            })
+        }
     loadReasons()
     }
     errors.value = {}
@@ -392,7 +459,7 @@ const resetForm = () => {
         appointment_date: selectedDateForForm,
         appointment_time: '',
         status: 'programada',
-        reason: '',
+    reason_id: '',
         notes: '',
     }
     filteredDoctors.value = []
@@ -566,7 +633,7 @@ const populateForm = async () => {
             appointment_date: appointmentDate.toISOString().split('T')[0],
             appointment_time: '', // Se asigna después de cargar los slots
             status: props.appointment.status,
-            reason: props.appointment.reason || '',
+            reason_id: props.appointment.reason_id ?? '',
             notes: props.appointment.notes || '',
         }
         
@@ -616,7 +683,8 @@ const submitForm = async () => {
     const data = {
         ...form.value,
         appointment_date: appointmentDateTime,
-    reason_id: form.value.reason, // Add reason_id to the data
+        reason_id: form.value.reason_id || null,
+        reason: reasonName.value || null,
     }
 
     // Remover campos que no necesitamos enviar

@@ -98,6 +98,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Clínica - configuración general
     Route::get('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'edit'])->name('admin.config.clinic');
     Route::post('/admin/config/clinic', [\App\Http\Controllers\Admin\ClinicSettingController::class, 'update'])->name('admin.config.clinic.update');
+    // Página Generales dentro del menú Configuración
+    Route::get('/admin/config/generales', [\App\Http\Controllers\AdminConfigController::class,'generales'])->name('admin.config.generales');
 
     // Configuración catálogos
     Route::get('/admin/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'patientTypes'])->name('admin.config.patient-types');
@@ -121,6 +123,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'storeAppointmentReason'])->name('admin.config.appointment-reasons.store');
     Route::put('/admin/config/appointment-reasons/{appointmentReason}', [\App\Http\Controllers\AdminConfigController::class,'updateAppointmentReason'])->name('admin.config.appointment-reasons.update');
     Route::patch('/admin/config/appointment-reasons/{appointmentReason}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleAppointmentReason'])->name('admin.config.appointment-reasons.toggle');
+
+    // Tipos de Estudios
+    Route::get('/admin/config/study-types', [\App\Http\Controllers\AdminConfigController::class,'studyTypes'])->name('admin.config.study-types');
+    Route::post('/admin/config/study-types', [\App\Http\Controllers\AdminConfigController::class,'storeStudyType'])->name('admin.config.study-types.store');
+    Route::put('/admin/config/study-types/{studyType}', [\App\Http\Controllers\AdminConfigController::class,'updateStudyType'])->name('admin.config.study-types.update');
+    Route::patch('/admin/config/study-types/{studyType}/toggle', [\App\Http\Controllers\AdminConfigController::class,'toggleStudyType'])->name('admin.config.study-types.toggle');
     
     // Plantillas de Ordenes medicas
     Route::get('/admin/config/medical-order-templates', [\App\Http\Controllers\AdminConfigController::class,'medicalOrderTemplates'])->name('admin.config.medical-order-templates');
@@ -145,12 +153,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // API selects dependientes
     Route::get('/api/config/countries', [\App\Http\Controllers\AdminConfigController::class,'apiCountries'])->name('api.config.countries');
+    // Endpoint API para búsqueda de pacientes (JSON)
+    Route::get('/api/patients', [\App\Http\Controllers\PatientController::class, 'apiSearch'])->name('api.patients.search');
     Route::get('/api/config/countries/{country}/provinces', [\App\Http\Controllers\AdminConfigController::class,'apiProvinces'])->name('api.config.provinces');
     Route::get('/api/config/provinces/{province}/cities', [\App\Http\Controllers\AdminConfigController::class,'apiCities'])->name('api.config.cities');
     Route::get('/api/config/patient-types', [\App\Http\Controllers\AdminConfigController::class,'apiPatientTypes'])->name('api.config.patient-types');
     Route::get('/api/config/insurance-providers', [\App\Http\Controllers\AdminConfigController::class,'apiInsuranceProviders'])->name('api.config.insurance-providers');
         Route::get('/api/config/holidays', [\App\Http\Controllers\AdminConfigController::class,'apiHolidays'])->name('api.config.holidays');
     Route::get('/api/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'apiAppointmentReasons'])->name('api.config.appointment-reasons');
+    Route::get('/api/config/study-types', [\App\Http\Controllers\AdminConfigController::class,'apiStudyTypes'])->name('api.config.study-types');
         Route::get('/api/config/medical-order-templates/active', [\App\Http\Controllers\AdminConfigController::class,'apiActiveMedicalOrderTemplates'])->name('api.config.medical-order-templates.active');
     });
     

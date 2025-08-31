@@ -153,6 +153,24 @@
                             </div>
                         </div>
                     </Link>
+                    
+                    <Link :href="route('admin.config.study-types')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-pink-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 16h6M9 8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-lg font-medium text-gray-900">Tipos de Estudios</div>
+                                    <div class="text-sm text-gray-500">Configurar tipos de estudios y costos</div>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
                 </div>
 
                 <!-- Actividad Reciente -->

@@ -227,6 +227,15 @@ class AdminConfigController extends Controller
         return response()->json($query->orderBy('name')->get(['id','name']));
     }
 
+    // API: Study Types
+    public function apiStudyTypes(Request $request)
+    {
+        $search = $request->get('search');
+        $query = \App\Models\StudyType::where('is_active', true);
+        if ($search) $query->where('name', 'like', "%$search%");
+        return response()->json($query->orderBy('name')->get(['id','name','cost']));
+    }
+
     // API: Plantillas de ordenes activas (para selector en Reportes)
     public function apiActiveMedicalOrderTemplates(Request $request)
     {
@@ -242,6 +251,18 @@ class AdminConfigController extends Controller
         ]);
     }
 
+    public function studyTypes()
+    {
+        return Inertia::render('Admin/Config/StudyTypes', [
+            'items' => \App\Models\StudyType::orderBy('name')->paginate(20)
+        ]);
+    }
+
+    public function generales()
+    {
+        return Inertia::render('Admin/Config/Generales');
+    }
+
     public function storeAppointmentReason(Request $request)
     {
         $data = $request->validate([
@@ -250,6 +271,17 @@ class AdminConfigController extends Controller
         ]);
     \App\Models\AppointmentReason::create($data);
     return back()->with('success','Motivo creado');
+    }
+
+    public function storeStudyType(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'cost' => 'nullable|numeric|min:0'
+        ]);
+        \App\Models\StudyType::create($data);
+        return back()->with('success','Tipo de estudio creado');
     }
 
     public function updateAppointmentReason(Request $request, \App\Models\AppointmentReason $appointmentReason)
@@ -262,9 +294,26 @@ class AdminConfigController extends Controller
     return back()->with('success','Motivo actualizado');
     }
 
+    public function updateStudyType(Request $request, \App\Models\StudyType $studyType)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'cost' => 'nullable|numeric|min:0'
+        ]);
+        $studyType->update($data);
+        return back()->with('success','Tipo de estudio actualizado');
+    }
+
     public function toggleAppointmentReason(\App\Models\AppointmentReason $appointmentReason)
     {
         $appointmentReason->update(['is_active' => !$appointmentReason->is_active]);
+        return back()->with('success','Estado actualizado');
+    }
+
+    public function toggleStudyType(\App\Models\StudyType $studyType)
+    {
+        $studyType->update(['is_active' => !$studyType->is_active]);
         return back()->with('success','Estado actualizado');
     }
 

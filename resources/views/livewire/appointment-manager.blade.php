@@ -19,11 +19,11 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">Fecha</label>
-                <input type="date" wire:model.live="filterDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <input type="date" wire:model="filterDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Doctor</label>
-                <select wire:model.live="filterDoctor" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <select wire:model="filterDoctor" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">Todos los doctores</option>
                     @foreach($doctors as $doctor)
                         <option value="{{ $doctor->id }}">Dr. {{ $doctor->user->name }}</option>
@@ -31,8 +31,17 @@
                 </select>
             </div>
             <div>
+                <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+                <select wire:model="filterSpecialty" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">Todas las especialidades</option>
+                    @foreach($specialties as $specialty)
+                        <option value="{{ $specialty->id }}">{{ $specialty->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700">Estado</label>
-                <select wire:model.live="filterStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <select wire:model="filterStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">Todos los estados</option>
                     <option value="programada">Programada</option>
                     <option value="confirmada">Confirmada</option>
@@ -43,7 +52,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Buscar Paciente</label>
-                <input type="text" wire:model.live.debounce.300ms="filterPatient" placeholder="Nombre del paciente" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <input type="text" wire:model.debounce.300ms="filterPatient" placeholder="Nombre del paciente" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
             </div>
         </div>
     </div>
@@ -155,7 +164,7 @@
                             <!-- Especialidad -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Especialidad</label>
-                                <select wire:model.live="specialty_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <select wire:model="specialty_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="">Seleccionar especialidad</option>
                                     @foreach($specialties as $specialty)
                                         <option value="{{ $specialty->id }}">{{ $specialty->name }}</option>

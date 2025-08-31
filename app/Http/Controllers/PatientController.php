@@ -234,4 +234,45 @@ class PatientController extends Controller
                 ->with('error', 'Error al cambiar el estado del paciente.');
         }
     }
+
+    /**
+     * API endpoint para búsqueda de pacientes usado por selects dinámicos (retorna JSON).
+     * Query params: q (string), limit (int)
+     */
+    public function apiSearch(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+        $limit = (int) $request->get('limit', 20);
+
+        $query = Patient::query()
+            ->with('user')
+            ->leftJoin('users', 'users.id', '=', 'patients.user_id')
+            ->select('patients.*')
+            ->when($q !== '', function($qq) use ($q) {
+                $qq->where(function($inner) use ($q) {
+                    $inner->where('users.name', 'like', "%{$q}%")
+                          ->orWhere('users.document_number', 'like', "%{$q}%")
+                          ->orWhere('users.email', 'like', "%{$q}%");
+                });
+            })
+            ->whereHas('user', function($u) {
+                $u->where('is_active', true);
+            })
+            ->orderByRaw('LOWER(users.name)')
+            ->limit($limit);
+
+        $patients = $query->get()->map(function($p) {
+            return [
+                'id' => $p->id,
+                'name' => $p->user->name ?? null,
+                'document_number' => $p->user->document_number ?? null,
+                'document_type' => $p->user->document_type ?? null,
+                'phone' => $p->user->phone ?? null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $patients,
+        ]);
+    }
 }
