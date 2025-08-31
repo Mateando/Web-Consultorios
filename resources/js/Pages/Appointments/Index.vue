@@ -137,6 +137,33 @@
                             </div>
                         </div>
                         
+                        <!-- Leyenda de colores (ubicada entre el header y el calendario) -->
+                        <div class="mb-4 bg-white p-4 rounded-lg shadow">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Leyenda de colores</h4>
+                            <div class="flex flex-wrap items-center gap-4 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block h-3 w-3 rounded-full bg-yellow-300 border"></span>
+                                    <span class="text-gray-700">Programada</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block h-3 w-3 rounded-full bg-blue-300 border"></span>
+                                    <span class="text-gray-700">Confirmada</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block h-3 w-3 rounded-full bg-green-300 border"></span>
+                                    <span class="text-gray-700">Completada</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block h-3 w-3 rounded-full bg-red-300 border"></span>
+                                    <span class="text-gray-700">Cancelada</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block h-3 w-3 rounded-full bg-gray-300 border"></span>
+                                    <span class="text-gray-700">No asistió</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <AppointmentCalendar
                             :appointments="calendarEvents"
                             :user-permissions="user_permissions"
