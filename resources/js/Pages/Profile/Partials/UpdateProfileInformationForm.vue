@@ -1,4 +1,5 @@
 <script setup>
+import { ref, onBeforeUnmount, watch } from 'vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -20,6 +21,47 @@ const form = useForm({
     name: user.name,
     email: user.email,
     profile_photo: null,
+});
+
+const fileInput = ref(null);
+
+function openFileSelector() {
+    if (fileInput.value) {
+        fileInput.value.click();
+    }
+}
+
+// previewUrl guarda la URL temporal creada con createObjectURL
+const previewUrl = ref(null);
+
+function handlePhotoChange(e) {
+    const file = e.target.files[0];
+    form.profile_photo = file || null;
+
+    // limpiar previas URLs
+    if (previewUrl.value) {
+        try { URL.revokeObjectURL(previewUrl.value); } catch (err) {}
+        previewUrl.value = null;
+    }
+
+    if (file) {
+        previewUrl.value = URL.createObjectURL(file);
+    }
+}
+
+// Si el form.profile_photo se resetea desde fuera (onSuccess), limpiar la previsualización
+watch(() => form.profile_photo, (val) => {
+    if (!val && previewUrl.value) {
+        try { URL.revokeObjectURL(previewUrl.value); } catch (err) {}
+        previewUrl.value = null;
+    }
+});
+
+onBeforeUnmount(() => {
+    if (previewUrl.value) {
+        try { URL.revokeObjectURL(previewUrl.value); } catch (err) {}
+        previewUrl.value = null;
+    }
 });
 
 function submitForm() {
@@ -55,20 +97,44 @@ function submitForm() {
             enctype="multipart/form-data"
         >
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-start gap-4">
                 <div>
                     <InputLabel for="profile_photo" value="Foto de perfil" />
+                    <!-- mostrar la miniatura encima del botón -->
+                    <div class="mt-2">
+                        <Transition
+                            enter-active-class="transition ease-out duration-200"
+                            enter-from-class="opacity-0 transform scale-95"
+                            enter-to-class="opacity-100 transform scale-100"
+                            leave-active-class="transition ease-in duration-150"
+                            leave-from-class="opacity-100 transform scale-100"
+                            leave-to-class="opacity-0 transform scale-95"
+                        >
+                            <img
+                                v-if="previewUrl || user.profile_photo_path"
+                                :src="previewUrl || ('/storage/' + user.profile_photo_path)"
+                                alt="Foto de perfil"
+                                class="h-24 w-24 rounded-full object-cover border"
+                            />
+                        </Transition>
+                    </div>
+
+                    <!-- input file oculto, se controla con el botón -->
                     <input
                         id="profile_photo"
+                        ref="fileInput"
                         type="file"
-                        class="mt-1 block w-full"
-                        @change="e => form.profile_photo = e.target.files[0]"
+                        class="hidden"
+                        @change="handlePhotoChange"
                         accept="image/*"
                     />
+
+                    <div class="flex items-center gap-2 mt-3">
+                        <PrimaryButton type="button" @click.prevent="openFileSelector">Seleccionar imagen</PrimaryButton>
+                        <span class="text-sm text-gray-600" v-if="form.profile_photo">{{ form.profile_photo.name }}</span>
+                    </div>
+
                     <InputError class="mt-2" :message="form.errors.profile_photo" />
-                </div>
-                <div v-if="user.profile_photo_path" class="ml-4">
-                    <img :src="'/storage/' + user.profile_photo_path" alt="Foto de perfil" class="h-16 w-16 rounded-full object-cover border" />
                 </div>
             </div>
             <div>
@@ -124,7 +190,7 @@ function submitForm() {
             </div>
 
             <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
+                <PrimaryButton type="submit" :disabled="form.processing">Guardar</PrimaryButton>
 
                 <Transition
                     enter-active-class="transition ease-in-out"

@@ -9,12 +9,22 @@ const model = defineModel({
 const input = ref(null);
 
 onMounted(() => {
-    if (input.value.hasAttribute('autofocus')) {
-        input.value.focus();
+    // Sólo intentar enfocar si el input tiene el atributo autofocus
+    // y no existe ya otro elemento enfocado en el documento.
+    try {
+        if (input.value && input.value.hasAttribute('autofocus')) {
+            const active = document.activeElement;
+            // Si no hay elemento activo, o el activo es el <body> o <html>, podemos enfocar.
+            if (!active || active === document.body || active === document.documentElement) {
+                input.value.focus();
+            }
+        }
+    } catch (err) {
+        // Silenciar cualquier error de acceso al DOM en entornos no soportados
     }
 });
 
-defineExpose({ focus: () => input.value.focus() });
+defineExpose({ focus: () => input.value && input.value.focus() });
 </script>
 
 <template>
