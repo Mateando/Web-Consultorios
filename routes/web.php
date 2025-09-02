@@ -20,6 +20,14 @@ Route::get('/', function () {
     ]);
 });
 
+
+// Quitar después de validar que la URL es alcanzable tras los cambios.
+    // Ruta para imprimir LISTADO de citas con filtros
+    Route::get('/appointments/print-list', [AppointmentController::class, 'printList'])->name('appointments.printList');
+
+    // API endpoint para obtener una cita como JSON (para prefill en modales)
+    Route::get('/api/appointments/{appointment}', [AppointmentController::class, 'apiShow'])->name('api.appointments.show');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // 2FA Google Authenticator
     Route::get('/profile/2fa', [\App\Http\Controllers\TwoFactorController::class, 'showSetup'])->name('profile.2fa');
@@ -49,6 +57,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Ruta para que pacientes cancelen sus citas
     Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+
+    // Ruta para imprimir una cita (vista imprimible)
+    Route::get('/appointments/{appointment}/print', [AppointmentController::class, 'print'])->name('appointments.print');
+    
+    // Ruta para imprimir LISTADO de citas con filtros
+    Route::get('/appointments/print-list', [AppointmentController::class, 'printList'])->name('appointments.printList');
     
     // Rutas para horarios de doctores (Admin y doctores)
     Route::middleware('role:administrador|medico')->group(function () {
@@ -163,6 +177,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'apiAppointmentReasons'])->name('api.config.appointment-reasons');
     Route::get('/api/config/study-types', [\App\Http\Controllers\AdminConfigController::class,'apiStudyTypes'])->name('api.config.study-types');
         Route::get('/api/config/medical-order-templates/active', [\App\Http\Controllers\AdminConfigController::class,'apiActiveMedicalOrderTemplates'])->name('api.config.medical-order-templates.active');
+    
+        // Endpoint para auditar envíos de WhatsApp (solo roles autorizados)
+        Route::post('/api/whatsapp-audits', [\App\Http\Controllers\WhatsappAuditController::class, 'store'])
+            ->name('api.whatsapp.audits.store')
+            ->middleware('role:administrador|recepcionista|medico');
     });
     
     // Rutas del perfil

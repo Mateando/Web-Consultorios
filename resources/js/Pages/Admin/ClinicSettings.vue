@@ -15,99 +15,75 @@
     </template>
 
     <div class="py-8 max-w-6xl mx-auto px-4">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Main card: formulario dentro de una tarjeta blanca similar al resto de Configuración -->
-        <div class="lg:col-span-2">
-          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow p-6">
-            <div v-if="successMessage" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
-              {{ successMessage }}
-            </div>
+      <div v-if="successMessage" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
+        {{ successMessage }}
+      </div>
 
-            <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
-              Error al guardar. Revisa los campos marcados.
-            </div>
+      <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
+        Error al guardar. Revisa los campos marcados.
+      </div>
 
-            <form @submit.prevent="submit" class="space-y-6">
-              <div>
-                <h3 class="text-lg font-medium text-gray-900">Datos del Consultorio</h3>
-                <p class="text-sm text-gray-500">Completa los datos que aparecerán en encabezados, comprobantes y favicon.</p>
-              </div>
+      <form @submit.prevent="submit" class="space-y-4 max-w-2xl">
+        <div>
+          <label class="block text-sm font-medium">Nombre</label>
+          <input v-model="form.name" type="text" class="mt-1 block w-full" />
+          <div v-if="getError('name')" class="mt-1 text-sm text-red-600">{{ getError('name') }}</div>
+        </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Nombre</label>
-                <input v-model="form.name" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                <div v-if="getError('name')" class="mt-1 text-sm text-red-600">{{ getError('name') }}</div>
-              </div>
+        <div>
+          <label class="block text-sm font-medium">Dirección</label>
+          <input v-model="form.address" type="text" class="mt-1 block w-full" />
+          <div v-if="getError('address')" class="mt-1 text-sm text-red-600">{{ getError('address') }}</div>
+        </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Dirección</label>
-                <input v-model="form.address" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                <div v-if="getError('address')" class="mt-1 text-sm text-red-600">{{ getError('address') }}</div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Teléfono</label>
-                  <input v-model="form.phone" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                  <div v-if="getError('phone')" class="mt-1 text-sm text-red-600">{{ getError('phone') }}</div>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Email</label>
-                  <input v-model="form.email" type="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                  <div v-if="getError('email')" class="mt-1 text-sm text-red-600">{{ getError('email') }}</div>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">CUIT / NIF</label>
-                <input v-model="form.tax_id" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
-                <div v-if="getError('tax_id')" class="mt-1 text-sm text-red-600">{{ getError('tax_id') }}</div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Notas pie</label>
-                <textarea v-model="form.footer_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-                <div v-if="getError('footer_notes')" class="mt-1 text-sm text-red-600">{{ getError('footer_notes') }}</div>
-              </div>
-
-              <div class="flex gap-2">
-                <PrimaryButton type="submit" :disabled="processing">{{ processing ? 'Guardando...' : 'Guardar' }}</PrimaryButton>
-                <SecondaryButton type="button" @click="reset">Restablecer</SecondaryButton>
-              </div>
-            </form>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium">Teléfono</label>
+            <input v-model="form.phone" type="text" class="mt-1 block w-full" />
+            <div v-if="getError('phone')" class="mt-1 text-sm text-red-600">{{ getError('phone') }}</div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Email</label>
+            <input v-model="form.email" type="email" class="mt-1 block w-full" />
+            <div v-if="getError('email')" class="mt-1 text-sm text-red-600">{{ getError('email') }}</div>
           </div>
         </div>
 
-        <!-- Sidebar card: logo y acciones rápidas -->
         <div>
-          <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow p-6 space-y-4">
-            <div>
-              <h4 class="text-sm font-medium text-gray-900">Logo</h4>
-              <p class="text-xs text-gray-500">Se usará en encabezados, favicon y exportes.</p>
-            </div>
-            <div class="flex items-center gap-4">
-              <div class="h-28 w-56 flex items-center justify-center border bg-white">
-                <img v-if="logoPreview" :src="logoPreview" alt="Preview" class="h-full object-contain" />
-                <img v-else-if="clinic.logo_url" :src="clinic.logo_url" alt="Logo actual" class="h-full object-contain" />
-                <div v-else class="text-sm text-gray-400">Sin logo</div>
-              </div>
-            </div>
+          <label class="block text-sm font-medium">CUIT / NIF</label>
+          <input v-model="form.tax_id" type="text" class="mt-1 block w-full" />
+          <div v-if="getError('tax_id')" class="mt-1 text-sm text-red-600">{{ getError('tax_id') }}</div>
+        </div>
 
-            <div class="space-y-2">
-              <input ref="fileInput" @change="onFileChange" type="file" accept="image/*" class="block w-full text-sm text-gray-600" />
+        <div>
+          <label class="block text-sm font-medium">Notas pie</label>
+          <textarea v-model="form.footer_notes" rows="3" class="mt-1 block w-full"></textarea>
+          <div v-if="getError('footer_notes')" class="mt-1 text-sm text-red-600">{{ getError('footer_notes') }}</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Logo (se usará en encabezados y favicon)</label>
+          <div class="mt-2 flex items-center gap-4">
+            <div v-if="logoPreview || clinic.logo_url" class="h-20 w-40 flex items-center justify-center border bg-white">
+              <img v-if="logoPreview" :src="logoPreview" alt="Preview" class="h-full object-contain" />
+              <img v-else-if="clinic.logo_url" :src="clinic.logo_url" alt="Logo actual" class="h-full object-contain" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <input ref="fileInput" @change="onFileChange" type="file" accept="image/*" />
               <div class="flex gap-2">
                 <SecondaryButton type="button" @click="chooseFile">Subir</SecondaryButton>
                 <SecondaryButton type="button" class="bg-red-50 text-red-600" @click="removeLogo">Eliminar</SecondaryButton>
               </div>
-              <div v-if="getError('logo')" class="mt-1 text-sm text-red-600">{{ getError('logo') }}</div>
-            </div>
-
-            <div class="pt-2 border-t">
-              <Link :href="route('admin.config.generales')" class="text-sm text-blue-600 hover:underline">Volver a Generales</Link>
             </div>
           </div>
+          <div v-if="getError('logo')" class="mt-1 text-sm text-red-600">{{ getError('logo') }}</div>
         </div>
-      </div>
+
+        <div class="flex gap-2">
+          <PrimaryButton type="submit" :disabled="processing">{{ processing ? 'Guardando...' : 'Guardar' }}</PrimaryButton>
+          <SecondaryButton type="button" @click="reset">Restablecer</SecondaryButton>
+        </div>
+      </form>
     </div>
   </AuthenticatedLayout>
 </template>
