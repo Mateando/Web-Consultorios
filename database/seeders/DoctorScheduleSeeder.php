@@ -1,5 +1,8 @@
 <?php
 
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Doctor;
 use App\Models\Specialty;
@@ -7,7 +10,9 @@ use App\Models\DoctorSchedule;
 
 class DoctorScheduleSeeder extends Seeder
 {
-    public function run()
+    use WithoutModelEvents;
+
+    public function run(): void
     {
         // Obtener algunos doctores y especialidades
         $doctors = Doctor::with('specialties')->take(3)->get();

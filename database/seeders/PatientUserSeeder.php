@@ -14,7 +14,7 @@ class PatientUserSeeder extends Seeder
     public function run(): void
     {
         // Crear rol de paciente si no existe
-        Role::firstOrCreate(['name' => 'patient']);
+    Role::firstOrCreate(['name' => 'paciente']);
         
         // Crear usuario paciente de prueba
         if (!User::where('email', 'paciente@ejemplo.com')->exists()) {
@@ -28,7 +28,7 @@ class PatientUserSeeder extends Seeder
                 'document_number' => '33445566',
             ]);
 
-            $user->assignRole('patient');
+            $user->assignRole('paciente');
 
             Patient::create([
                 'user_id' => $user->id,

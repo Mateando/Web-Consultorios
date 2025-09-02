@@ -12,8 +12,8 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Crear roles si no existen
-        Role::firstOrCreate(['name' => 'admin']);
+    // Crear roles si no existen (usar nombre en español para consistency con la app)
+    Role::firstOrCreate(['name' => 'administrador']);
         
         // Crear usuario admin
         if (!User::where('email', 'admin@consultorio.com')->exists()) {
@@ -27,7 +27,7 @@ class AdminUserSeeder extends Seeder
                 'document_number' => '00000000',
             ]);
 
-            $admin->assignRole('admin');
+            $admin->assignRole('administrador');
             $this->command->info('Usuario admin creado: admin@consultorio.com / admin123');
         }
     }

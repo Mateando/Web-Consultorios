@@ -27,9 +27,9 @@ class MassiveTestDataSeeder extends Seeder
         }
 
         // Crear roles necesarios
-        Role::firstOrCreate(['name' => 'doctor']);
-        Role::firstOrCreate(['name' => 'patient']);
-        Role::firstOrCreate(['name' => 'recepcionista']);
+    Role::firstOrCreate(['name' => 'medico']);
+    Role::firstOrCreate(['name' => 'paciente']);
+    Role::firstOrCreate(['name' => 'recepcionista']);
 
         // Crear especialidades base
         $specialtyNames = [
@@ -51,7 +51,7 @@ class MassiveTestDataSeeder extends Seeder
                 ['name' => 'Dr. Test ' . $i, 'password' => bcrypt('password')]
             );
             // Asignar rol si no lo tiene
-            if (!$user->hasRole('doctor')) $user->assignRole('doctor');
+            if (!$user->hasRole('medico')) $user->assignRole('medico');
 
             $doctor = Doctor::firstOrCreate(
                 ['user_id' => $user->id],
@@ -103,7 +103,7 @@ class MassiveTestDataSeeder extends Seeder
                 ['email' => $email],
                 ['name' => 'Paciente Test ' . $i, 'password' => bcrypt('password')]
             );
-            if (!$user->hasRole('patient')) $user->assignRole('patient');
+            if (!$user->hasRole('paciente')) $user->assignRole('paciente');
 
             $patient = Patient::firstOrCreate(['user_id' => $user->id]);
             $patients->push($patient);

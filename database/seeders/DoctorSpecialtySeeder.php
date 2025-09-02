@@ -18,10 +18,10 @@ class DoctorSpecialtySeeder extends Seeder
     public function run(): void
     {
         // Crear roles si no existen
-        Role::firstOrCreate(['name' => 'admin']);
-        Role::firstOrCreate(['name' => 'doctor']);
-        Role::firstOrCreate(['name' => 'patient']);
-        Role::firstOrCreate(['name' => 'receptionist']);
+    Role::firstOrCreate(['name' => 'administrador']);
+    Role::firstOrCreate(['name' => 'medico']);
+    Role::firstOrCreate(['name' => 'paciente']);
+    Role::firstOrCreate(['name' => 'recepcionista']);
 
         // Crear especialidades si no existen
         $cardiologia = Specialty::firstOrCreate(['name' => 'Cardiología']);
@@ -42,7 +42,7 @@ class DoctorSpecialtySeeder extends Seeder
                 'document_number' => '12345678',
             ]);
 
-            $user1->assignRole('doctor');
+            $user1->assignRole('medico');
 
             $doctor1 = Doctor::create([
                 'user_id' => $user1->id,
@@ -66,7 +66,7 @@ class DoctorSpecialtySeeder extends Seeder
                 'document_number' => '87654321',
             ]);
 
-            $user2->assignRole('doctor');
+            $user2->assignRole('medico');
 
             $doctor2 = Doctor::create([
                 'user_id' => $user2->id,
@@ -90,7 +90,7 @@ class DoctorSpecialtySeeder extends Seeder
                 'document_number' => '11223344',
             ]);
 
-            $user3->assignRole('doctor');
+            $user3->assignRole('medico');
 
             $doctor3 = Doctor::create([
                 'user_id' => $user3->id,
@@ -113,7 +113,7 @@ class DoctorSpecialtySeeder extends Seeder
                 'document_number' => '55667788',
             ]);
 
-            $user4->assignRole('doctor');
+            $user4->assignRole('medico');
 
             $doctor4 = Doctor::create([
                 'user_id' => $user4->id,

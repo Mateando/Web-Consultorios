@@ -15,8 +15,14 @@
                 <div class="mt-1 text-gray-800">{{ patientDisplayName }}</div>
               </div>
 
-              <div v-if="isStaff">
-                <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+              <div v-if="isStaff || editMode">
+                <label class="block text-sm font-medium text-gray-700">Paciente</label>
+                <select v-model="form.patient_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                  <option value="">Seleccionar paciente</option>
+                  <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.user.name }}</option>
+                </select>
+
+                <label class="block text-sm font-medium text-gray-700 mt-2">Especialidad</label>
                 <select v-model="form.specialty_id" @change="onSpecialtyOrDoctorChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                   <option value="">(Sin especificar)</option>
                   <option v-for="sp in specialties" :key="sp.id" :value="sp.id">{{ sp.name }}</option>
@@ -95,9 +101,9 @@
             </div>
           </div>
 
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button v-if="isStaff" type="submit" :disabled="form.processing || submitting" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Actualizar</button>
-            <button v-else type="button" @click="$emit('edit', appointment)" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Editar</button>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button v-if="isStaff || editMode" type="submit" :disabled="form.processing || submitting" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Actualizar</button>
+            <button v-else type="button" @click.prevent="enterEditMode" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Editar</button>
             <button type="button" @click="$emit('print', appointment)" class="inline-flex ml-2 justify-center rounded-md border border-gray-300 px-4 py-2 bg-white">Imprimir</button>
             <button type="button" :disabled="!hasPhone" @click="openWhatsApp" :class="['inline-flex ml-2 justify-center rounded-md px-4 py-2', hasPhone ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500']">WhatsApp</button>
             <button type="button" @click="$emit('close')" class="mt-3 sm:mt-0 ml-2 inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white">Cerrar</button>
@@ -117,10 +123,12 @@ const props = defineProps({ show: Boolean, appointment: Object, doctors: Array, 
 const emit = defineEmits(['close','saved','print','edit'])
 
 const submitting = ref(false)
+const editMode = ref(false)
 
 const isStaff = computed(() => !props.userPermissions?.is_patient && props.userPermissions?.can_edit_appointments)
 
 const form = useForm({
+  patient_id: '',
   doctor_id: '',
   specialty_id: '',
   appointment_date: '',
@@ -175,9 +183,10 @@ watch(() => props.show, (v) => {
     const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
     const date = dt && !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : ''
     const time = dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
-    form.reset()
+  form.reset()
     form.set({
-      doctor_id: a.doctor_id || a.doctor?.id || '',
+  patient_id: a.patient_id || a.patient?.id || '',
+  doctor_id: a.doctor_id || a.doctor?.id || '',
       specialty_id: a.specialty_id || a.specialty?.id || '',
       appointment_date: date,
       appointment_time: time,
@@ -191,8 +200,61 @@ watch(() => props.show, (v) => {
     if (form.doctor_id && form.appointment_date) {
       loadSlots()
     }
+    // set edit mode automatically for patients if backend marked can_edit
+    if (props.appointment && typeof props.appointment.can_edit !== 'undefined') {
+      editMode.value = !!props.appointment.can_edit && !isStaff.value
+    } else {
+      editMode.value = false
+    }
   }
 })
+
+// Try to enter edit mode: check permission via provided flag or api
+const enterEditMode = async () => {
+  if (!props.appointment || !props.appointment.id) return
+  // if backend already provided a can_edit flag, use it
+  if (typeof props.appointment.can_edit !== 'undefined') {
+    if (!props.appointment.can_edit) {
+      alert('No está permitido editar esta cita (fecha pasada o permisos insuficientes).')
+      return
+    }
+    editMode.value = true
+    return
+  }
+
+  // fallback: request apiShow to check can_edit
+  try {
+    const res = await axios.get(`/api/appointments/${props.appointment.id}`)
+    const data = res.data || {}
+    if (data.can_edit === false) {
+      alert('No está permitido editar esta cita (fecha pasada o permisos insuficientes).')
+      return
+    }
+    // merge any fresh appointment data
+    if (data.appointment) {
+      // update props.appointment in-place isn't allowed; instead prefill form with returned data
+      const a = data.appointment
+      const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
+      const date = dt && !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : ''
+      const time = dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
+      form.set({
+        doctor_id: a.doctor_id || a.doctor?.id || form.doctor_id,
+        specialty_id: a.specialty_id || a.specialty?.id || form.specialty_id,
+        appointment_date: date || form.appointment_date,
+        appointment_time: time || form.appointment_time,
+        duration: a.duration || form.duration,
+        reason: a.reason || form.reason,
+        reason_id: a.reason_id || form.reason_id,
+        notes: a.notes || form.notes,
+        status: a.status || form.status
+      })
+      if (form.doctor_id && form.appointment_date) loadSlots()
+    }
+    editMode.value = true
+  } catch (e) {
+    alert('No se pudo verificar permisos de edición. Intente nuevamente.')
+  }
+}
 
 const onSpecialtyOrDoctorChange = () => {
   // Clear selected time when changing doctor/specialty
