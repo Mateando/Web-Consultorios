@@ -60,8 +60,8 @@ class AppointmentController extends Controller
     // Obtener todas las citas para el calendario y paginar por separado para la lista
     $allAppointmentsForCalendar = (clone $query)->orderBy('appointment_date', 'asc')->get();
 
-    // Usar paginación para que la vista Lista tenga estructura { data, links, prev_page_url, next_page_url }
-    $appointments = $query->orderBy('appointment_date', 'asc')->paginate(15);
+    // Usar paginación para la vista Lista (10 por página)
+    $appointments = $query->orderBy('appointment_date', 'asc')->paginate(10)->withQueryString();
 
     // Formatear las citas para el calendario a partir de la colección completa
     $calendarEvents = collect($allAppointmentsForCalendar->all())->map(function ($appointment) {
@@ -168,7 +168,8 @@ class AppointmentController extends Controller
             $query->whereDate('appointment_date', '<=', $request->end_date);
         }
 
-        $appointments = $query->orderBy('appointment_date', 'asc')->get();
+    // Devolver todas las citas para impresión (el client enviará filtros si los hay)
+    $appointments = $query->orderBy('appointment_date', 'asc')->get();
 
         // Clinic info (similar a AppServiceProvider)
         try {

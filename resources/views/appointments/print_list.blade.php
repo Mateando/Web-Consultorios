@@ -52,7 +52,14 @@
         </div>
 
         @php
-            $isLarge = request()->query('large') === '1' || (isset($appointments) && $appointments->count() > 500);
+            // Detectar si $appointments es un paginator o una colección simple
+            $isPaginator = isset($appointments) && $appointments instanceof \Illuminate\Pagination\LengthAwarePaginator;
+            if ($isPaginator) {
+                $total = $appointments->total();
+            } else {
+                $total = isset($appointments) && is_countable($appointments) ? count($appointments) : 0;
+            }
+            $isLarge = request()->query('large') === '1' || ($total > 500);
         @endphp
 
         <div class="header">
@@ -66,7 +73,7 @@
                     @if(!empty($clinicInfo['phone'])) &middot; Tel: {{ $clinicInfo['phone'] }}@endif
                     @if(!empty($clinicInfo['email'])) &middot; {{ $clinicInfo['email'] }}@endif
                 </div>
-                <div class="small">Generado por: {{ $generated_by }} el {{ $generated_at->format('d/m/Y H:i') }} &nbsp; | &nbsp; Total: {{ $appointments->count() }}</div>
+                <div class="small">Generado por: {{ $generated_by }} el {{ $generated_at->format('d/m/Y H:i') }} &nbsp; | &nbsp; Total: {{ $total }}</div>
 
                 @if(!empty($filterLabels))
                     <div class="small">Filtros aplicados:
@@ -77,15 +84,24 @@
                         @endforeach
                     </div>
                 @endif
-                @if($appointments->isEmpty())
+                @php
+                    $isEmpty = $total === 0;
+                @endphp
+                @if($isEmpty)
                     <div style="margin-top:8px; padding:8px; background:#fff3cd; border:1px solid #ffecb5; color:#856404; border-radius:6px; font-size:13px;">No se encontraron citas para los filtros seleccionados.</div>
                 @elseif($isLarge)
-                    <div style="margin-top:8px; padding:8px; background:#fffbe6; border:1px solid #fff1b8; color:#7a5900; border-radius:6px; font-size:13px;">Advertencia: la lista contiene muchas citas ({{ $appointments->count() }}). La impresión puede tardar o generar varias páginas.</div>
+                    <div style="margin-top:8px; padding:8px; background:#fffbe6; border:1px solid #fff1b8; color:#7a5900; border-radius:6px; font-size:13px;">Advertencia: la lista contiene muchas citas ({{ $total }}). La impresión puede tardar o generar varias páginas.</div>
                 @endif
             </div>
-        </div>
+            </div>
 
-    <table>
+        @if($isPaginator)
+            <div style="margin-top:12px; font-size:13px; color:#444">Mostrando página {{ $appointments->currentPage() }} de {{ $appointments->lastPage() }}. La impresión realizará la página actual.</div>
+        @else
+            <div style="margin-top:12px; font-size:13px; color:#444">Mostrando todos los registros ({{ $total }}). La impresión incluirá todo el listado.</div>
+        @endif
+
+        <table>
         <thead>
             <tr>
                 <th>Fecha y Hora</th>
@@ -111,5 +127,18 @@
             @endforeach
         </tbody>
     </table>
+    @if($isPaginator)
+        <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center">
+            <div class="small no-print">
+                @if($appointments->previousPageUrl())
+                    <a href="{{ $appointments->previousPageUrl() }}" class="btn-primary" style="background:#e5e7eb;color:#111;padding:6px 10px;border-radius:6px;text-decoration:none">&larr; Anterior</a>
+                @endif
+                @if($appointments->nextPageUrl())
+                    <a href="{{ $appointments->nextPageUrl() }}" class="btn-primary" style="background:#e5e7eb;color:#111;padding:6px 10px;border-radius:6px;text-decoration:none;margin-left:8px">Siguiente &rarr;</a>
+                @endif
+            </div>
+            <div class="small no-print">Página {{ $appointments->currentPage() }} / {{ $appointments->lastPage() }}</div>
+        </div>
+    @endif
 </body>
 </html>

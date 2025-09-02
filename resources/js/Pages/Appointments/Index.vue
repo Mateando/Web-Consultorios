@@ -292,21 +292,42 @@
                         <!-- Paginación -->
                         <div class="mt-4" v-if="appointments && appointments.links">
                             <nav class="flex items-center justify-between">
+                                <!-- Mobile: prev/next -->
                                 <div class="flex-1 flex justify-between sm:hidden">
                                     <Link
                                         v-if="appointments.prev_page_url"
-                                        :href="appointments.prev_page_url"
-                                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                                        :href="(function(){ try { const u = new URL(appointments.prev_page_url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return appointments.prev_page_url } })()"
+                                        class="relative inline-flex items-center px-4 py-2 border border-transparent bg-gray-800 text-xs font-semibold uppercase tracking-widest text-white rounded-md hover:bg-gray-700"
                                     >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M12.293 16.293a1 1 0 010 1.414l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L8.414 10l5.293 5.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
                                         Anterior
                                     </Link>
                                     <Link
                                         v-if="appointments.next_page_url"
-                                        :href="appointments.next_page_url"
-                                        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                                        :href="(function(){ try { const u = new URL(appointments.next_page_url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return appointments.next_page_url } })()"
+                                        class="ml-3 relative inline-flex items-center px-4 py-2 border border-transparent bg-gray-800 text-xs font-semibold uppercase tracking-widest text-white rounded-md hover:bg-gray-700"
                                     >
                                         Siguiente
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.707 3.707a1 1 0 010-1.414l6 6a1 1 0 010 1.414l-6 6A1 1 0 016.293 15.293L11.586 10 6.293 4.707a1 1 0 011.414-1.414z" clip-rule="evenodd"/></svg>
                                     </Link>
+                                </div>
+
+                                <!-- Desktop: numeric pagination -->
+                                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-center">
+                                    <div>
+                                        <span class="relative z-0 inline-flex shadow-sm rounded-md">
+                                            <template v-for="(link, idx) in appointments.links" :key="idx">
+                                                <Link
+                                                    v-if="link.url"
+                                                    :href="(function(){ try { const u = new URL(link.url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return link.url } })()"
+                                                    :class="[ 'relative inline-flex items-center px-4 py-2 border text-sm font-medium', link.active ? 'bg-gray-800 text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' ]"
+                                                >
+                                                    {{ decodeHtml(link.label) }}
+                                                </Link>
+                                                <span v-else class="relative inline-flex items-center px-4 py-2 border bg-white text-gray-500 text-sm">{{ decodeHtml(link.label) }}</span>
+                                            </template>
+                                        </span>
+                                    </div>
                                 </div>
                             </nav>
                         </div>
@@ -464,6 +485,13 @@ const formatDateTime = (dateTime) => {
         hour: '2-digit',
         minute: '2-digit'
     })
+}
+
+// Decode HTML entities like &laquo; coming from paginator labels
+const decodeHtml = (html) => {
+    const txt = document.createElement('textarea')
+    txt.innerHTML = html || ''
+    return txt.value
 }
 
 const getStatusClass = (status) => {
@@ -746,6 +774,30 @@ const getBadgeStyle = (status) => {
     }
 }
 
+// Fallback: asegurar que cualquier enlace del paginador en el DOM incluya el param 'view'
+const updatePaginationLinks = () => {
+    try {
+        // buscar dentro del contenedor de paginación
+        const container = document.querySelector('.mt-4')
+        if (!container) return
+        const anchors = container.querySelectorAll('a[href]')
+        anchors.forEach(a => {
+            try {
+                const href = a.getAttribute('href') || ''
+                const u = new URL(href, window.location.origin)
+                u.searchParams.set('view', currentView.value)
+                // Usar ruta relativa si el origin coincide con el actual
+                const final = u.toString()
+                a.setAttribute('href', final)
+            } catch (e) {
+                // ignore malformed urls
+            }
+        })
+    } catch (e) {
+        // ignore
+    }
+}
+
 // Watcher para cargar días disponibles cuando cambia el filtro de especialidad
 watch(() => filters.value.specialty_id, (newSpecialtyId) => {
     loadAvailableDays(newSpecialtyId)
@@ -756,6 +808,31 @@ onMounted(() => {
     if (filters.value.specialty_id) {
         loadAvailableDays(filters.value.specialty_id)
     }
+    // Inicializar vista desde query param 'view' para preservar vista al paginar
+    try {
+        const params = new URLSearchParams(window.location.search)
+        const v = params.get('view')
+        if (v === 'list' || v === 'calendar') currentView.value = v
+    } catch (e) {
+        // ignore
+    }
+    // aplicar parche runtime a links de paginación
+    updatePaginationLinks()
+})
+
+// Mantener el parámetro 'view' en la URL cuando cambia la vista (no recarga)
+watch(currentView, (v) => {
+    try {
+        const url = new URL(window.location.href)
+        const params = url.searchParams
+        if (v) params.set('view', v)
+        url.search = params.toString()
+        history.replaceState(null, '', url.toString())
+    } catch (e) {
+        // ignore
+    }
+    // cuando cambie la vista, asegurarse que los links de paginación en el DOM se actualicen
+    updatePaginationLinks()
 })
 </script>
 
