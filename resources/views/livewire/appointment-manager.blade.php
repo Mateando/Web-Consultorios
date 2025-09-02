@@ -61,44 +61,40 @@
     <div class="bg-white shadow overflow-hidden sm:rounded-md">
         <ul class="divide-y divide-gray-200">
             @forelse($appointments as $appointment)
-                <li class="px-6 py-4">
+                @php
+                    $statusColors = config('appointment_colors') ?? [];
+                    $rowBg = $statusColors[$appointment->status]['bg'] ?? '#ffffff';
+                    $rowText = $statusColors[$appointment->status]['text'] ?? '#111827';
+                @endphp
+                <li class="px-6 py-4" style="color: {{ $rowText }};">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
                             <div class="flex-shrink-0">
-                                <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                    <span class="text-sm font-medium text-gray-700">
+                                <div class="h-10 w-10 rounded-full flex items-center justify-center" style="background: rgba(255,255,255,0.18);">
+                                    <span class="text-sm font-medium text-current">
                                         {{ substr($appointment->patient->user->name, 0, 2) }}
                                     </span>
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">
+                                <div class="text-sm font-medium text-current">
                                     {{ $appointment->patient->user->name }}
                                 </div>
-                                <div class="text-sm text-gray-500">
+                                <div class="text-sm text-current">
                                     Dr. {{ $appointment->doctor->user->name }} - {{ $appointment->doctor->specialty->name }}
                                 </div>
-                                <div class="text-sm text-gray-500">
+                                <div class="text-sm text-current">
                                     {{ $appointment->appointment_date->format('d/m/Y H:i') }} 
                                     ({{ $appointment->duration }} min)
                                 </div>
-                                <div class="text-sm text-gray-500">
+                                <div class="text-sm text-current">
                                     {{ $appointment->reason }}
                                 </div>
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
                             <!-- Estado -->
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                @switch($appointment->status)
-                                    @case('programada') bg-yellow-100 text-yellow-800 @break
-                                    @case('confirmada') bg-blue-100 text-blue-800 @break
-                                    @case('completada') bg-green-100 text-green-800 @break
-                                    @case('cancelada') bg-red-100 text-red-800 @break
-                                    @case('no_asistio') bg-gray-100 text-gray-800 @break
-                                    @default bg-gray-100 text-gray-800
-                                @endswitch
-                            ">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background: rgba(255,255,255,0.18); color: {{ $rowText }};">
                                 {{ ucfirst($appointment->status) }}
                             </span>
 

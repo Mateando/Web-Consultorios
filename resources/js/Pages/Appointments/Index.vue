@@ -137,6 +137,34 @@
                             </div>
                         </div>
                         
+                        <!-- Leyenda de colores para el calendario -->
+                        <div class="mb-4 flex flex-wrap items-center gap-3" aria-hidden="true">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#3b82f6"></span>
+                                <span class="text-sm text-gray-700">Programada</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#10b981"></span>
+                                <span class="text-sm text-gray-700">Confirmada</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#f59e0b"></span>
+                                <span class="text-sm text-gray-700">En curso</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#6b7280"></span>
+                                <span class="text-sm text-gray-700">Completada</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#ef4444"></span>
+                                <span class="text-sm text-gray-700">Cancelada</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-block w-4 h-4 rounded-full" style="background:#9ca3af"></span>
+                                <span class="text-sm text-gray-700">No asistió</span>
+                            </div>
+                        </div>
+
                         <AppointmentCalendar
                             :appointments="calendarEvents"
                             :user-permissions="user_permissions"
@@ -151,7 +179,8 @@
                 <!-- Vista de Lista -->
                 <div v-if="currentView === 'list'" class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
-                        <div class="overflow-x-auto">
+                            <!-- (diagnóstico temporal eliminado) -->
+                            <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
@@ -194,7 +223,7 @@
                                             {{ appointment.specialty?.name || 'General' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span :class="getStatusClass(appointment.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                            <span :style="getBadgeStyle(appointment.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ getStatusText(appointment.status) }}
                                             </span>
                                         </td>
@@ -213,9 +242,9 @@
                                                 <SecondaryButton type="button" @click="deleteAppointment(appointment)" class="!px-2 !py-1 mr-3 text-red-600 hover:text-red-900 bg-white border-gray-200">Eliminar</SecondaryButton>
                                             </template>
 
-                                            <!-- Botón WhatsApp para confirmar (aparece siempre en 'programada'; si falta teléfono aparece deshabilitado) -->
-                                            <template v-if="appointment.status === 'programada' && user_permissions?.can_edit_appointments">
-                                                <a v-if="appointment.patient?.user?.phone" :href="formatWhatsAppUrl(appointment)" target="_blank" rel="noopener" class="inline-flex items-center rounded-md border border-green-300 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-widest text-green-600 shadow-sm transition duration-150 ease-in-out hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mr-3">
+                                            <!-- Botón WhatsApp para confirmar (aparece en 'programada' y 'confirmada'; si falta teléfono aparece deshabilitado) -->
+                                            <template v-if="['programada','confirmada'].includes(appointment.status) && user_permissions?.can_edit_appointments">
+                                                <a v-if="hasWhatsapp(appointment)" :href="formatWhatsAppUrl(appointment)" target="_blank" rel="noopener" class="inline-flex items-center rounded-md border border-green-300 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-widest text-green-600 shadow-sm transition duration-150 ease-in-out hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mr-3">
                                                     <!-- Icono WhatsApp (icono + texto en verde) -->
                                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4 mr-1 text-green-600">
                                                         <path d="M20.52 3.48A11.92 11.92 0 0012 0C5.373 0 .102 4.917.001 11.17a11.93 11.93 0 002.13 6.19L0 24l6.86-2.04A11.92 11.92 0 0012 24c6.627 0 11.999-4.917 12-11.17 0-1.86-.42-3.62-1.48-5.35zM12 21.5c-1.3 0-2.57-.3-3.7-.86l-.27-.14-4.08 1.21 1.15-3.98-.17-.33A9.5 9.5 0 012.5 11.17 9.5 9.5 0 1112 21.5z"/>
@@ -223,13 +252,13 @@
                                                     </svg>
                                                     <span class="text-sm">WhatsApp</span>
                                                 </a>
-                                                <span v-else class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-widest text-gray-400 shadow-sm transition duration-150 ease-in-out cursor-not-allowed opacity-50 mr-3" title="Paciente sin teléfono">
+                                                <button v-else disabled aria-disabled="true" title="Paciente sin teléfono" class="inline-flex items-center rounded-md border border-gray-300 bg-gray-100 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-gray-400 shadow-sm transition duration-150 ease-in-out cursor-not-allowed opacity-70 mr-3">
                                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4 mr-1 text-gray-400">
                                                         <path d="M20.52 3.48A11.92 11.92 0 0012 0C5.373 0 .102 4.917.001 11.17a11.93 11.93 0 002.13 6.19L0 24l6.86-2.04A11.92 11.92 0 0012 24c6.627 0 11.999-4.917 12-11.17 0-1.86-.42-3.62-1.48-5.35zM12 21.5c-1.3 0-2.57-.3-3.7-.86l-.27-.14-4.08 1.21 1.15-3.98-.17-.33A9.5 9.5 0 012.5 11.17 9.5 9.5 0 1112 21.5z"/>
                                                         <path d="M17.16 14.03c-.28-.14-1.66-.82-1.92-.91-.26-.09-.45-.14-.64.14s-.73.91-.9 1.1c-.17.19-.34.21-.63.07-.3-.14-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.13.3-.34.45-.51.15-.17.2-.28.3-.46.09-.17.04-.32-.02-.46-.06-.14-.64-1.54-.88-2.1-.23-.55-.46-.47-.63-.48-.16-.01-.35-.01-.54-.01s-.45.06-.69.31c-.24.24-.92.9-.92 2.2 0 1.29.94 2.54 1.07 2.72.14.17 1.86 2.84 4.51 3.87 2.66 1.03 2.66.69 3.14.65.48-.04 1.56-.63 1.78-1.24.22-.61.22-1.13.15-1.24-.07-.1-.26-.16-.55-.3z"/>
                                                     </svg>
                                                     <span class="text-sm">WhatsApp</span>
-                                                </span>
+                                                </button>
                                             </template>
 
                                             <!-- Botón cancelar para pacientes (solo si no pueden editar) -->
@@ -593,7 +622,7 @@ const formatPhone = (phone) => {
 
 // Construye la URL de WhatsApp para confirmar la cita
 const formatWhatsAppUrl = (appointment) => {
-    const phone = appointment.patient?.user?.phone
+    const phone = getPatientPhone(appointment)
     if (!phone) return '#'
     const phoneClean = formatPhone(phone)
     const date = new Date(appointment.appointment_date)
@@ -604,6 +633,70 @@ const formatWhatsAppUrl = (appointment) => {
     const message = `Hola ${patientName}, te contactamos desde el consultorio para confirmar tu cita con ${doctorName} (${specialty}) el ${dateText}. Por favor responde "CONFIRMO" si asistirás.`
     const encoded = encodeURIComponent(message)
     return `https://wa.me/${phoneClean}?text=${encoded}`
+}
+
+import { STATUS_COLORS, getStatusColor } from '@/colors/appointmentColors.js'
+
+// Obtener el número de teléfono del paciente probando varios campos y estructuras comunes
+const getPatientPhone = (appointment) => {
+    if (!appointment) return ''
+
+    // posibles ubicaciones
+    const patient = appointment.patient || {}
+
+    // direct field on patient
+    if (patient.phone) return String(patient.phone)
+
+    // user object
+    const user = patient.user || {}
+    const candidates = [
+        user.phone,
+        user.phone_number,
+        user.mobile,
+        user.whatsapp,
+        user.telefono,
+        user.contact_phone,
+    ]
+
+    for (const c of candidates) {
+        if (c && String(c).trim() !== '') return String(c)
+    }
+
+    // arrays of phones (por ejemplo phones: [{number: '...'}])
+    if (Array.isArray(user.phones) && user.phones.length) {
+        const first = user.phones[0]
+        if (first) {
+            if (first.number) return String(first.number)
+            if (first.phone) return String(first.phone)
+        }
+    }
+
+    // fallback: any other possible top-level phone-like props on user
+    for (const key of Object.keys(user)) {
+        if (/phone|tel|mobile|contact|whatsapp/i.test(key) && user[key]) {
+            return String(user[key])
+        }
+    }
+
+    return ''
+}
+
+const hasWhatsapp = (appointment) => {
+    const raw = getPatientPhone(appointment)
+    if (!raw) return false
+    // limpiar y mantener sólo dígitos
+    const digits = String(raw).replace(/\D/g, '')
+    // requerir al menos 6 dígitos para considerar válido
+    return digits.length >= 6
+}
+
+// Badge style (only the status pill will be colored)
+const getBadgeStyle = (status) => {
+    const c = getStatusColor(status)
+    return {
+        backgroundColor: c.bg,
+        color: c.text
+    }
 }
 
 // Watcher para cargar días disponibles cuando cambia el filtro de especialidad
@@ -618,3 +711,18 @@ onMounted(() => {
     }
 })
 </script>
+
+// Nota: diagnósticos temporales removidos
+
+<style scoped>
+/* Estilos para los badges de estado: fondo con algo de opacidad y bordes suaves */
+td > span {
+    box-shadow: 0 1px 0 rgba(0,0,0,0.03) inset;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Si el badge tiene color oscuro, asegurar texto en blanco */
+.badge-dark {
+    color: #ffffff !important;
+}
+</style>

@@ -4,6 +4,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { getStatusColor } from '@/colors/appointmentColors.js'
 import axios from 'axios'
 import { Calendar } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -109,6 +110,8 @@ const initCalendar = () => {
         calendar = new Calendar(calendarEl.value, {
             plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
             initialView: 'dayGridMonth',
+            // Render events as full blocks so the whole entry gets the event color
+            eventDisplay: 'block',
             locale: 'es',
             firstDay: 1,
             headerToolbar: {
@@ -192,14 +195,8 @@ const initCalendar = () => {
 
 // Función para asignar colores según el estado de la cita
 const getAppointmentColor = (status) => {
-    const colors = {
-        'programada': '#3b82f6',    // Azul
-        'confirmada': '#10b981',    // Verde
-        'en_curso': '#f59e0b',      // Amarillo
-        'completada': '#6b7280',    // Gris
-        'cancelada': '#ef4444'      // Rojo
-    }
-    return colors[status] || '#3b82f6'
+    const c = getStatusColor(status)
+    return c.bg || '#3b82f6'
 }
 
 watch([() => props.filteredSpecialtyId, () => props.availableDays], () => {
@@ -320,5 +317,23 @@ onMounted(() => {
     /* Cancelada - Rojo */
     background-color: #ef4444 !important;
     border-color: #dc2626 !important;
+}
+
+/* DayGrid (month) specific: make events render as colored blocks instead of a small dot + text */
+:deep(.fc-daygrid-event) {
+    display: block !important;
+}
+
+:deep(.fc-daygrid-event .fc-event-main) {
+    display: block !important;
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
+    background-color: inherit !important;
+    border-color: inherit !important;
+    color: inherit !important;
+}
+
+:deep(.fc-event-dot) {
+    display: none !important; /* hide the small colored dot */
 }
 </style>
