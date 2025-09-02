@@ -1,90 +1,94 @@
 <template>
   <Head title="Datos del Consultorio" />
   <AuthenticatedLayout>
-    <template #header>
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-xl text-gray-800 leading-tight">Configuración</h2>
-          <div class="text-sm text-gray-500">Datos del Consultorio</div>
+
+    <section class="py-8 max-w-6xl mx-auto px-4">
+      <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+        <div class="mb-6">
+          <h2 class="text-lg font-medium text-gray-900">Configuración</h2>
+          <p class="mt-1 text-sm text-gray-600">Editar los datos del consultorio</p>
         </div>
-        <div class="flex items-center gap-4">
-          <Link :href="route('admin.config.generales')" class="text-sm text-blue-600 hover:underline">Generales</Link>
-          <Link :href="route('admin.config.study-types')" class="text-sm text-blue-600 hover:underline">Tipos de Estudios</Link>
+        <div v-if="successMessage" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
+          {{ successMessage }}
         </div>
-      </div>
-    </template>
 
-    <div class="py-8 max-w-6xl mx-auto px-4">
-      <div v-if="successMessage" class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
-        {{ successMessage }}
-      </div>
+        <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
+          Error al guardar. Revisa los campos marcados.
+        </div>
 
-      <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
-        Error al guardar. Revisa los campos marcados.
-      </div>
-
-      <form @submit.prevent="submit" class="space-y-4 max-w-2xl">
+        <form @submit.prevent="submit" class="mt-6 space-y-6 max-w-2xl">
         <div>
-          <label class="block text-sm font-medium">Nombre</label>
-          <input v-model="form.name" type="text" class="mt-1 block w-full" />
-          <div v-if="getError('name')" class="mt-1 text-sm text-red-600">{{ getError('name') }}</div>
+          <InputLabel for="name" value="Nombre" />
+          <TextInput id="name" v-model="form.name" class="mt-1 block w-full" />
+          <InputError class="mt-2" :message="getError('name')" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium">Dirección</label>
-          <input v-model="form.address" type="text" class="mt-1 block w-full" />
-          <div v-if="getError('address')" class="mt-1 text-sm text-red-600">{{ getError('address') }}</div>
+          <InputLabel for="address" value="Dirección" />
+          <TextInput id="address" v-model="form.address" class="mt-1 block w-full" />
+          <InputError class="mt-2" :message="getError('address')" />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium">Teléfono</label>
-            <input v-model="form.phone" type="text" class="mt-1 block w-full" />
-            <div v-if="getError('phone')" class="mt-1 text-sm text-red-600">{{ getError('phone') }}</div>
+            <InputLabel for="phone" value="Teléfono" />
+            <TextInput id="phone" v-model="form.phone" class="mt-1 block w-full" />
+            <InputError class="mt-2" :message="getError('phone')" />
           </div>
           <div>
-            <label class="block text-sm font-medium">Email</label>
-            <input v-model="form.email" type="email" class="mt-1 block w-full" />
-            <div v-if="getError('email')" class="mt-1 text-sm text-red-600">{{ getError('email') }}</div>
+            <InputLabel for="email" value="Email" />
+            <TextInput id="email" v-model="form.email" type="email" class="mt-1 block w-full" />
+            <InputError class="mt-2" :message="getError('email')" />
           </div>
         </div>
 
         <div>
-          <label class="block text-sm font-medium">CUIT / NIF</label>
-          <input v-model="form.tax_id" type="text" class="mt-1 block w-full" />
-          <div v-if="getError('tax_id')" class="mt-1 text-sm text-red-600">{{ getError('tax_id') }}</div>
+          <InputLabel for="tax_id" value="CUIT / NIF" />
+          <TextInput id="tax_id" v-model="form.tax_id" class="mt-1 block w-full" />
+          <InputError class="mt-2" :message="getError('tax_id')" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium">Notas pie</label>
-          <textarea v-model="form.footer_notes" rows="3" class="mt-1 block w-full"></textarea>
-          <div v-if="getError('footer_notes')" class="mt-1 text-sm text-red-600">{{ getError('footer_notes') }}</div>
+          <InputLabel for="footer_notes" value="Notas pie" />
+          <textarea id="footer_notes" v-model="form.footer_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+          <InputError class="mt-2" :message="getError('footer_notes')" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium">Logo (se usará en encabezados y favicon)</label>
-          <div class="mt-2 flex items-center gap-4">
-            <div v-if="logoPreview || clinic.logo_url" class="h-20 w-40 flex items-center justify-center border bg-white">
-              <img v-if="logoPreview" :src="logoPreview" alt="Preview" class="h-full object-contain" />
-              <img v-else-if="clinic.logo_url" :src="clinic.logo_url" alt="Logo actual" class="h-full object-contain" />
-            </div>
-            <div class="flex flex-col gap-2">
-              <input ref="fileInput" @change="onFileChange" type="file" accept="image/*" />
-              <div class="flex gap-2">
-                <SecondaryButton type="button" @click="chooseFile">Subir</SecondaryButton>
-                <SecondaryButton type="button" class="bg-red-50 text-red-600" @click="removeLogo">Eliminar</SecondaryButton>
+          <InputLabel value="Logo (se usará en encabezados y favicon)" />
+          <div class="mt-2">
+            <Transition
+              enter-active-class="transition ease-out duration-200"
+              enter-from-class="opacity-0 transform scale-95"
+              enter-to-class="opacity-100 transform scale-100"
+              leave-active-class="transition ease-in duration-150"
+              leave-from-class="opacity-100 transform scale-100"
+              leave-to-class="opacity-0 transform scale-95"
+            >
+              <div v-if="logoPreview || clinic.logo_url" class="mb-3 h-24 w-48 flex items-center justify-center border bg-white">
+                <img v-if="logoPreview" :src="logoPreview" alt="Preview" class="h-full object-contain" />
+                <img v-else-if="clinic.logo_url" :src="clinic.logo_url" alt="Logo actual" class="h-full object-contain" />
               </div>
+            </Transition>
+
+            <input ref="fileInput" class="hidden" @change="onFileChange" type="file" accept="image/*" />
+            <div class="flex items-center gap-2">
+              <PrimaryButton type="button" @click.prevent="chooseFile">Seleccionar imagen</PrimaryButton>
+              <SecondaryButton type="button" class="bg-red-50 text-red-600" @click="removeLogo">Eliminar</SecondaryButton>
+              <span class="text-sm text-gray-600" v-if="logoFile">{{ logoFile.name }}</span>
             </div>
+
+            <InputError class="mt-2" :message="getError('logo')" />
           </div>
-          <div v-if="getError('logo')" class="mt-1 text-sm text-red-600">{{ getError('logo') }}</div>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex items-center gap-4">
           <PrimaryButton type="submit" :disabled="processing">{{ processing ? 'Guardando...' : 'Guardar' }}</PrimaryButton>
           <SecondaryButton type="button" @click="reset">Restablecer</SecondaryButton>
         </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </section>
   </AuthenticatedLayout>
 </template>
 
@@ -94,6 +98,9 @@ import { usePage, Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
+import InputLabel from '@/Components/InputLabel.vue'
+import TextInput from '@/Components/TextInput.vue'
+import InputError from '@/Components/InputError.vue'
 import axios from 'axios'
 
 const page = usePage()
