@@ -80,7 +80,7 @@
                     </div>
                 </div>
 
-                <!-- Navegación de secciones administrativas (coincide con el menú Administración) -->
+                <!-- Navegación de secciones administrativas -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Link :href="route('admin.users')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
                         <div class="p-6">
@@ -95,6 +95,24 @@
                                 <div class="ml-4">
                                     <div class="text-lg font-medium text-gray-900">Gestión de Usuarios</div>
                                     <div class="text-sm text-gray-500">Administrar usuarios del sistema</div>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    <Link :href="route('admin.specialties')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-lg font-medium text-gray-900">Especialidades Médicas</div>
+                                    <div class="text-sm text-gray-500">Configurar especialidades</div>
                                 </div>
                             </div>
                         </div>
@@ -117,8 +135,8 @@
                             </div>
                         </div>
                     </Link>
-
-                    <Link :href="route('admin.config.generales')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
+                    
+                    <Link :href="route('admin.config.clinic')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
                         <div class="p-6">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0">
@@ -129,8 +147,26 @@
                                     </div>
                                 </div>
                                 <div class="ml-4">
-                                    <div class="text-lg font-medium text-gray-900">Configuración</div>
-                                    <div class="text-sm text-gray-500">Acceder a la configuración general del sistema</div>
+                                    <div class="text-lg font-medium text-gray-900">Datos del Consultorio</div>
+                                    <div class="text-sm text-gray-500">Configura el nombre, dirección y datos de contacto</div>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+                    
+                    <Link :href="route('admin.config.study-types')" class="bg-white overflow-hidden shadow-sm sm:rounded-lg hover:shadow-lg transition-shadow">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-pink-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 16h6M9 8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-lg font-medium text-gray-900">Tipos de Estudios</div>
+                                    <div class="text-sm text-gray-500">Configurar tipos de estudios y costos</div>
                                 </div>
                             </div>
                         </div>
