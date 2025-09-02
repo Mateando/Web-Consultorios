@@ -660,17 +660,22 @@ class AppointmentController extends Controller
             if ($r) $reasonText = $r->name;
         }
 
-        $appointment->update([
-            'patient_id' => $request->patient_id,
-            'doctor_id' => $request->doctor_id,
-            'specialty_id' => $request->specialty_id,
-            'appointment_date' => $request->appointment_date,
-            'duration' => $request->duration ?? 30,
-            'notes' => $request->notes,
-            'reason' => $reasonText,
-            'reason_id' => $reasonId,
-            'status' => $request->status ?? 'programada',
-        ]);
+        try {
+            $appointment->update([
+                'patient_id' => $request->patient_id,
+                'doctor_id' => $request->doctor_id,
+                'specialty_id' => $request->specialty_id,
+                'appointment_date' => $request->appointment_date,
+                'duration' => $request->duration ?? 30,
+                'notes' => $request->notes,
+                'reason' => $reasonText,
+                'reason_id' => $reasonId,
+                'status' => $request->status ?? 'programada',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            // Convertir la excepción de validación de horario en un error de formulario
+            return redirect()->back()->withErrors(['appointment_date' => $e->getMessage()]);
+        }
 
         return redirect()->back()->with('success', 'Cita actualizada exitosamente.');
     }
@@ -704,9 +709,56 @@ class AppointmentController extends Controller
             $canEdit = false;
         }
 
+        // Además, incluir información de disponibilidad para el doctor en la fecha/especialidad
+        $availability = null;
+        try {
+            $doc = $appointment->doctor;
+            if ($doc && $appointment->appointment_date && $appointment->specialty_id) {
+                $date = Carbon::parse($appointment->appointment_date)->toDateString();
+                $dayOfWeek = strtolower(Carbon::parse($appointment->appointment_date)->format('l'));
+                $schedules = $doc->schedules()
+                    ->where('day_of_week', $dayOfWeek)
+                    ->where('specialty_id', $appointment->specialty_id)
+                    ->where('is_active', true)
+                    ->get();
+
+                if ($schedules->isNotEmpty()) {
+                    $allSlots = [];
+                    foreach ($schedules as $sch) {
+                        $slotsForSchedule = $sch->getAvailableTimeSlots();
+                        if (!empty($slotsForSchedule)) $allSlots = array_merge($allSlots, $slotsForSchedule);
+                    }
+                    $allSlots = array_values(array_unique($allSlots));
+                    sort($allSlots);
+
+                    $bookedCount = $doc->appointments()
+                        ->whereDate('appointment_date', $date)
+                        ->where('specialty_id', $appointment->specialty_id)
+                        ->whereNotIn('status', ['cancelada'])
+                        ->when($appointment->id, function($q) use ($appointment) {
+                            return $q->where('id', '!=', $appointment->id);
+                        })->count();
+
+                    $totalSlots = count($allSlots);
+                    $availableSlots = max(0, $totalSlots - $bookedCount);
+
+                    $availability = [
+                        'total_slots' => $totalSlots,
+                        'booked_slots' => $bookedCount,
+                        'available_slots' => $availableSlots,
+                        'slots' => $allSlots,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // no bloquear la respuesta por fallos en cálculo de disponibilidad
+            $availability = null;
+        }
+
         return response()->json([
             'appointment' => $appointment,
             'can_edit' => $canEdit,
+            'availability' => $availability,
         ]);
     }
 

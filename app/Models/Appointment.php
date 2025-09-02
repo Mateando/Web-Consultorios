@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class Appointment extends Model
 {
@@ -48,6 +50,53 @@ class Appointment extends Model
             if ($appointment->isDirty(['appointment_date', 'doctor_id'])) {
                 self::validateAppointmentTime($appointment);
             }
+        });
+
+        // Auditoría: registrar en tabla appointment_audits
+        static::created(function ($appointment) {
+            try { $userId = Auth::id(); } catch (\Throwable $e) { $userId = null; }
+            DB::table('appointment_audits')->insert([
+                'appointment_id' => (int) $appointment->getKey(),
+                'user_id' => $userId,
+                'action' => 'created',
+                'changes' => json_encode($appointment->toArray()),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        static::updated(function ($appointment) {
+            try {
+                $userId = Auth::id();
+            } catch (\Throwable $e) { $userId = null; }
+            $changes = [
+                'before' => $appointment->getOriginal(),
+                'after' => $appointment->getAttributes(),
+                'dirty' => $appointment->getDirty(),
+            ];
+            DB::table('appointment_audits')->insert([
+                'appointment_id' => (int) $appointment->getKey(),
+                'user_id' => $userId,
+                'action' => 'updated',
+                'changes' => json_encode($changes),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        // Use deleting (before delete) so the appointment row still exists for FK constraints
+        static::deleting(function ($appointment) {
+            try {
+                $userId = Auth::id();
+            } catch (\Throwable $e) { $userId = null; }
+            DB::table('appointment_audits')->insert([
+                'appointment_id' => (int) $appointment->getKey(),
+                'user_id' => $userId,
+                'action' => 'deleted',
+                'changes' => json_encode($appointment->toArray()),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         });
     }
 

@@ -1,11 +1,16 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @click="$emit('close')"></div>
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+  <Modal :show="show" maxWidth="lg" @close="$emit('close')">
+    <template #default>
+      <div class="relative">
+        <div v-if="loading" class="p-6 flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+          <div class="text-gray-700">Cargando cita...</div>
+        </div>
 
-      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <form @submit.prevent="submit">
+        <form v-else @submit.prevent="submit">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Editar Cita</h3>
 
@@ -13,26 +18,26 @@
               <div>
                 <label class="block text-sm text-gray-500">Paciente</label>
                 <div class="mt-1 text-gray-800">{{ patientDisplayName }}</div>
+                <input type="hidden" v-model="form.patient_id" />
               </div>
 
               <div v-if="isStaff || editMode">
-                <label class="block text-sm font-medium text-gray-700">Paciente</label>
-                <select v-model="form.patient_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                  <option value="">Seleccionar paciente</option>
-                  <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.user.name }}</option>
-                </select>
-
-                <label class="block text-sm font-medium text-gray-700 mt-2">Especialidad</label>
-                <select v-model="form.specialty_id" @change="onSpecialtyOrDoctorChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                  <option value="">(Sin especificar)</option>
-                  <option v-for="sp in specialties" :key="sp.id" :value="sp.id">{{ sp.name }}</option>
-                </select>
-
-                <label class="block text-sm font-medium text-gray-700 mt-2">Doctor</label>
-                <select v-model="form.doctor_id" @change="onSpecialtyOrDoctorChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                  <option value="">Seleccionar doctor</option>
-                  <option v-for="d in filteredDoctors" :key="d.id" :value="d.id">{{ d.user.name }}</option>
-                </select>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+                    <select v-model="form.specialty_id" @change="onSpecialtyOrDoctorChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                      <option value="">(Sin especificar)</option>
+                      <option v-for="sp in specialties" :key="sp.id" :value="sp.id">{{ sp.name }}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Doctor</label>
+                    <select v-model="form.doctor_id" @change="onSpecialtyOrDoctorChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                      <option value="">Seleccionar doctor</option>
+                      <option v-for="d in filteredDoctors" :key="d.id" :value="d.id">{{ d.user.name }}</option>
+                    </select>
+                  </div>
+                </div>
 
                 <div class="grid grid-cols-2 gap-2 mt-2">
                   <div>
@@ -66,7 +71,6 @@
               </div>
 
               <div v-else>
-                <!-- Pacientes ven sólo lectura: reutilizar visualización anterior -->
                 <div>
                   <div class="text-sm text-gray-500">Doctor</div>
                   <div class="mt-1 text-gray-800">{{ doctorName }}</div>
@@ -101,7 +105,7 @@
             </div>
           </div>
 
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button v-if="isStaff || editMode" type="submit" :disabled="form.processing || submitting" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Actualizar</button>
             <button v-else type="button" @click.prevent="enterEditMode" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Editar</button>
             <button type="button" @click="$emit('print', appointment)" class="inline-flex ml-2 justify-center rounded-md border border-gray-300 px-4 py-2 bg-white">Imprimir</button>
@@ -110,22 +114,25 @@
           </div>
         </form>
       </div>
-    </div>
-  </div>
+    </template>
+  </Modal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useForm } from '@inertiajs/vue3'
 import axios from 'axios'
+import Modal from './Modal.vue'
+import { useForm } from '@inertiajs/vue3'
 
-const props = defineProps({ show: Boolean, appointment: Object, doctors: Array, patients: Array, specialties: Array, userPermissions: Object })
-const emit = defineEmits(['close','saved','print','edit'])
-
-const submitting = ref(false)
-const editMode = ref(false)
-
-const isStaff = computed(() => !props.userPermissions?.is_patient && props.userPermissions?.can_edit_appointments)
+const props = defineProps({
+  show: Boolean,
+  appointment: Object,
+  doctors: Array,
+  specialties: Array,
+  isStaff: Boolean,
+  forceEdit: Boolean
+})
+const emit = defineEmits(['close', 'saved', 'print', 'consumed-force-edit'])
 
 const form = useForm({
   patient_id: '',
@@ -141,78 +148,112 @@ const form = useForm({
 })
 
 const slots = ref([])
+const submitting = ref(false)
+const editMode = ref(false)
+const loading = ref(false)
 
-const patientDisplayName = computed(() => props.appointment?.patient?.user?.name || props.appointment?.patient_name || 'N/A')
-const doctorName = computed(() => props.appointment?.doctor?.user?.name || props.appointment?.doctor_name || props.appointment?.doctor?.name || 'N/A')
-const appointmentDate = computed(() => {
-  const a = props.appointment
-  if (!a) return ''
-  const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
-  return dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString() : ''
-})
-const appointmentTime = computed(() => {
-  const a = props.appointment
-  if (!a) return ''
-  const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
-  return dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
-})
-const reason = computed(() => props.appointment?.reason || props.appointment?.appointment_reason || '-')
-const status = computed(() => props.appointment?.status || '-')
+const patientDisplayName = computed(() => props.appointment?.patient?.name || props.appointment?.patient_name || '')
+const doctorName = computed(() => props.appointment?.doctor?.user?.name || props.appointment?.doctor_name || '')
+const appointmentDate = computed(() => props.appointment?.appointment_date || props.appointment?.start || '')
+const appointmentTime = computed(() => props.appointment?.appointment_time || '')
+const reason = computed(() => props.appointment?.reason || '')
+const status = computed(() => props.appointment?.status || '')
 const notes = computed(() => props.appointment?.notes || '')
-
-const phone = computed(() => props.appointment?.patient?.phone || props.appointment?.patient?.user?.phone || props.appointment?.patient_phone || '')
-const hasPhone = computed(() => !!phone.value && phone.value.toString().trim().length > 0)
-
-const openWhatsApp = () => {
-  if (!hasPhone.value) return
-  const num = phone.value.toString().replace(/[^+0-9]/g, '')
-  const text = encodeURIComponent(`Hola, respecto a su cita el ${appointmentDate.value} a las ${appointmentTime.value}`)
-  const url = `https://wa.me/${num}?text=${text}`
-  window.open(url, '_blank')
-}
+const hasPhone = computed(() => !!(props.appointment && (props.appointment.patient?.phone || props.appointment.patient_phone)))
 
 const filteredDoctors = computed(() => {
   if (!form.specialty_id) return props.doctors || []
   return (props.doctors || []).filter(d => (d.specialties || []).some(s => String(s.id) === String(form.specialty_id)))
 })
 
-watch(() => props.show, (v) => {
-  if (v && props.appointment) {
-    // Prefill form values
-    const a = props.appointment
-    const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
-    const date = dt && !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : ''
-    const time = dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
-  form.reset()
-    form.set({
-  patient_id: a.patient_id || a.patient?.id || '',
-  doctor_id: a.doctor_id || a.doctor?.id || '',
-      specialty_id: a.specialty_id || a.specialty?.id || '',
-      appointment_date: date,
-      appointment_time: time,
-      duration: a.duration || 30,
-      reason: a.reason || '',
-      reason_id: a.reason_id || null,
-      notes: a.notes || '',
-      status: a.status || 'programada'
+// Safe data assignment helper
+function assignFormData(payload) {
+  if (typeof form.setData === 'function') {
+    form.setData(payload)
+  } else if (typeof form.set === 'function') {
+    form.set(payload)
+  } else if (form && typeof form === 'object') {
+    Object.keys(payload).forEach(k => {
+      if (k in form) form[k] = payload[k]
+      else if (form.data && (k in form.data)) form.data[k] = payload[k]
     })
-    // Load available slots for prefilled doctor/date
-    if (form.doctor_id && form.appointment_date) {
-      loadSlots()
+  }
+}
+
+watch(() => props.show, async (v) => {
+  if (!v) return
+  // If parent provided a full appointment, prefill immediately
+  if (props.appointment && props.appointment.id && props.appointment.patient) {
+    prefillFromAppointment(props.appointment)
+    // If parent forced edit, honor it
+    if (props.forceEdit) {
+      editMode.value = true
+      emit('consumed-force-edit')
     }
-    // set edit mode automatically for patients if backend marked can_edit
-    if (props.appointment && typeof props.appointment.can_edit !== 'undefined') {
-      editMode.value = !!props.appointment.can_edit && !isStaff.value
-    } else {
-      editMode.value = false
+    return
+  }
+
+  // If forced edit but we don't have full data yet, fetch it before showing
+  if (props.forceEdit && props.appointment && props.appointment.id) {
+    loading.value = true
+    try {
+      const res = await axios.get(`/api/appointments/${props.appointment.id}`)
+      const data = res.data || {}
+      if (data.appointment) {
+        prefillFromAppointment(data.appointment)
+      }
+      // if backend says cannot edit, inform user
+      if (data.can_edit === false) {
+        alert('No está permitido editar esta cita (fecha pasada o permisos insuficientes).')
+        emit('close')
+        return
+      }
+      editMode.value = true
+      emit('consumed-force-edit')
+    } catch (e) {
+      alert('No se pudo obtener la cita. Intente nuevamente.')
+      emit('close')
+    } finally {
+      loading.value = false
     }
+    return
+  }
+
+  // Otherwise, if we have an appointment id but limited data, still prefill minimal
+  if (props.appointment && props.appointment.id) {
+    prefillFromAppointment(props.appointment)
   }
 })
 
-// Try to enter edit mode: check permission via provided flag or api
+function prefillFromAppointment(a) {
+  const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
+  const date = dt && !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : ''
+  const time = dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
+  form.reset()
+  const payload = {
+    patient_id: a.patient_id || a.patient?.id || '',
+    doctor_id: a.doctor_id || a.doctor?.id || '',
+    specialty_id: a.specialty_id || a.specialty?.id || '',
+    appointment_date: date,
+    appointment_time: time,
+    duration: a.duration || 30,
+    reason: a.reason || '',
+    reason_id: a.reason_id || null,
+    notes: a.notes || '',
+    status: a.status || 'programada'
+  }
+  assignFormData(payload)
+  if (form.doctor_id && form.appointment_date) loadSlots()
+  // If backend provided can_edit and user is not staff, honor it
+  if (typeof a.can_edit !== 'undefined') {
+    editMode.value = !!a.can_edit && !props.isStaff
+  } else {
+    editMode.value = false
+  }
+}
+
 const enterEditMode = async () => {
   if (!props.appointment || !props.appointment.id) return
-  // if backend already provided a can_edit flag, use it
   if (typeof props.appointment.can_edit !== 'undefined') {
     if (!props.appointment.can_edit) {
       alert('No está permitido editar esta cita (fecha pasada o permisos insuficientes).')
@@ -222,7 +263,7 @@ const enterEditMode = async () => {
     return
   }
 
-  // fallback: request apiShow to check can_edit
+  // As fallback, ask backend
   try {
     const res = await axios.get(`/api/appointments/${props.appointment.id}`)
     const data = res.data || {}
@@ -230,26 +271,7 @@ const enterEditMode = async () => {
       alert('No está permitido editar esta cita (fecha pasada o permisos insuficientes).')
       return
     }
-    // merge any fresh appointment data
-    if (data.appointment) {
-      // update props.appointment in-place isn't allowed; instead prefill form with returned data
-      const a = data.appointment
-      const dt = a.appointment_date ? new Date(a.appointment_date) : (a.start ? new Date(a.start) : null)
-      const date = dt && !isNaN(dt.getTime()) ? dt.toISOString().split('T')[0] : ''
-      const time = dt && !isNaN(dt.getTime()) ? dt.toTimeString().slice(0,5) : ''
-      form.set({
-        doctor_id: a.doctor_id || a.doctor?.id || form.doctor_id,
-        specialty_id: a.specialty_id || a.specialty?.id || form.specialty_id,
-        appointment_date: date || form.appointment_date,
-        appointment_time: time || form.appointment_time,
-        duration: a.duration || form.duration,
-        reason: a.reason || form.reason,
-        reason_id: a.reason_id || form.reason_id,
-        notes: a.notes || form.notes,
-        status: a.status || form.status
-      })
-      if (form.doctor_id && form.appointment_date) loadSlots()
-    }
+    if (data.appointment) prefillFromAppointment(data.appointment)
     editMode.value = true
   } catch (e) {
     alert('No se pudo verificar permisos de edición. Intente nuevamente.')
@@ -257,7 +279,6 @@ const enterEditMode = async () => {
 }
 
 const onSpecialtyOrDoctorChange = () => {
-  // Clear selected time when changing doctor/specialty
   form.appointment_time = ''
   slots.value = []
   if (form.doctor_id && form.appointment_date) loadSlots()
@@ -270,7 +291,6 @@ const onDateChange = () => {
 }
 
 const loadSlots = async () => {
-  // request available slots from backend; include editing_appointment_id to exclude current appointment
   try {
     const params = {
       doctor_id: form.doctor_id,
@@ -297,37 +317,44 @@ const isFutureAppointment = () => {
 
 const submit = async () => {
   if (!props.appointment || !props.appointment.id) return
+  // Ensure a time is selected; backend will treat empty as 00:00 which may be invalid
+  if (!form.appointment_time) {
+    alert('Seleccione una hora para la cita antes de actualizar.')
+    return
+  }
 
-  // Validar localmente: la nueva fecha/hora debe ser futura
   if (!isFutureAppointment()) {
     alert('La fecha y hora deben ser futuras. No es posible reasignar a una fecha pasada.');
     return
   }
 
   submitting.value = true
-  const payload = {
-    doctor_id: form.doctor_id,
-    specialty_id: form.specialty_id,
-    appointment_date: `${form.appointment_date} ${form.appointment_time || '00:00'}`,
-    duration: form.duration,
-    reason: form.reason,
-    reason_id: form.reason_id,
-    notes: form.notes,
-    status: form.status,
-  }
-
   try {
-    await form.put(`/appointments/${props.appointment.id}`, { data: payload })
+  // Combinar fecha y hora en appointment_date para enviar un datetime completo al backend
+  const originalDate = form.appointment_date
+  form.appointment_date = `${form.appointment_date} ${form.appointment_time}`
+  await form.put(`/appointments/${props.appointment.id}`)
     emit('saved')
     emit('close')
   } catch (e) {
-    // Errors handled by Inertia form
+    // Los errores de validación son manejados por Inertia y se muestran en el formulario si aplica
   } finally {
-    submitting.value = false
+  // Restaurar valor de fecha (solo fecha) para la UI
+  try { form.appointment_date = originalDate } catch (e) {}
+  submitting.value = false
   }
+}
+
+const openWhatsApp = () => {
+  const phone = (props.appointment?.patient?.phone || props.appointment?.patient_phone || '')
+  const num = phone.toString().replace(/[^+0-9]/g, '')
+  const text = encodeURIComponent(`Hola, respecto a su cita el ${appointmentDate.value} a las ${appointmentTime.value}`)
+  const url = `https://wa.me/${num}?text=${text}`
+  window.open(url, '_blank')
 }
 </script>
 
 <style scoped>
 /* estilos mínimos */
 </style>
+/* estilos mínimos */

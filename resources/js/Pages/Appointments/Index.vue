@@ -348,22 +348,24 @@
                         />
 
                         <!-- Modal independiente para editar -->
-                        <AppointmentEditModal
-                            :show="showEditModal"
-                            :appointment="selectedAppointment"
-                            :doctors="doctors"
-                            :patients="patients"
-                            :specialties="specialties"
-                            @close="closeModal"
-                            @saved="appointmentSaved"
-                        />
+                                <AppointmentEditModal
+                                    :show="showEditModal"
+                                    :appointment="selectedAppointment"
+                                    :doctors="doctors"
+                                    :patients="patients"
+                                    :specialties="specialties"
+                                    :force-edit="directOpenEdit"
+                                    @close="closeModal"
+                                    @saved="appointmentSaved"
+                                    @consumed-force-edit="directOpenEdit = false"
+                                />
                         <!-- Modal detalle simple para citas (abre al click en el calendario) -->
                         <AppointmentDetailModal
                             :show="showDetailModal"
                             :appointment="selectedAppointment"
                             :user-permissions="user_permissions"
                             @close="() => { showDetailModal = false; selectedAppointment = null }"
-                            @edit="(appt) => { showDetailModal = false; editAppointment(appt) }"
+                            @edit="openEditFromDetail"
                             @delete="(appt) => { showDetailModal = false; deleteAppointment(appt) }"
                             @print="(appt) => { printSingle(appt) }"
                         />
@@ -403,6 +405,7 @@ const showDetailModal = ref(false)
 const selectedDate = ref(null)
 const availableDays = ref([])
 const loadingAvailableDays = ref(false)
+const directOpenEdit = ref(false)
 
 const filters = ref({
     doctor_id: props.filters?.doctor_id || '',
@@ -556,9 +559,62 @@ const editAppointment = (appointment) => {
         return
     }
     
-    selectedAppointment.value = appointment
-    selectedDate.value = null
-    showEditModal.value = true
+    // If the appointment object is a lightweight calendar event (doesn't include patient/doctor objects),
+    // fetch the full appointment from the API before opening the edit modal so the edit form is prefilled.
+    const hasFullData = appointment && (appointment.patient || appointment.doctor || appointment.specialty)
+    if (hasFullData) {
+        selectedAppointment.value = appointment
+        selectedDate.value = null
+        showEditModal.value = true
+        return
+    }
+
+    // Fetch full appointment via API and then open modal
+    (async () => {
+        try {
+            const res = await axios.get(`/api/appointments/${appointment.id}`)
+            const data = res.data || {}
+            // Prefer full appointment object from API if present
+            const full = data.appointment || appointment
+            // Attach can_edit flag if provided
+            if (typeof data.can_edit !== 'undefined') full.can_edit = data.can_edit
+            selectedAppointment.value = full
+            selectedDate.value = null
+            showEditModal.value = true
+        } catch (e) {
+            console.error('Error fetching full appointment for edit:', e)
+            // Fallback: open modal with provided object (best-effort)
+            selectedAppointment.value = appointment
+            selectedDate.value = null
+            showEditModal.value = true
+        }
+    })()
+}
+
+// Called from AppointmentDetailModal when user clicks Edit there.
+// This ensures we close the detail modal first and then open the edit modal
+// avoiding the extra intermediate modal appearance.
+const openEditFromDetail = async (appointment) => {
+    // Close detail modal immediately
+    showDetailModal.value = false
+
+    // Try to fetch full appointment data via API so the edit modal receives the complete object
+    try {
+        const res = await axios.get(`/api/appointments/${appointment.id}`)
+        const data = res.data || {}
+        const full = data.appointment || appointment
+        if (typeof data.can_edit !== 'undefined') full.can_edit = data.can_edit
+        selectedAppointment.value = full
+        // Mark force edit so modal opens in edit mode
+        directOpenEdit.value = true
+        showEditModal.value = true
+    } catch (e) {
+        console.error('Error fetching appointment for edit from detail:', e)
+        // Fallback: open with lightweight object — user can press Edit inside to trigger permission check
+        selectedAppointment.value = appointment
+        directOpenEdit.value = true
+        showEditModal.value = true
+    }
 }
 
 // Mostrar detalle de cita (invocado desde el calendario)

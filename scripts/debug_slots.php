@@ -8,7 +8,21 @@ if (!file_exists($dbPath)) {
     echo json_encode(['error' => "No se encontró la base de datos en $dbPath"], JSON_PRETTY_PRINT);
     exit(1);
 }
-
+app-DG93H_qu.js:4  GET https://consultorio.test/api/appointments/available-slots?doctor_id=5&date=2025-09-02&specialty_id=2 404 (Not Found)
+(anonymous) @ app-DG93H_qu.js:4
+xhr @ app-DG93H_qu.js:4
+ha @ app-DG93H_qu.js:6
+_request @ app-DG93H_qu.js:7
+request @ app-DG93H_qu.js:6
+fr.<computed> @ app-DG93H_qu.js:7
+(anonymous) @ app-DG93H_qu.js:2
+ee @ Index-CqeBVFd4.js:53
+E @ Index-CqeBVFd4.js:53
+Sn @ app-DG93H_qu.js:87
+St @ app-DG93H_qu.js:87
+r @ app-DG93H_qu.js:92
+handleMouseUp_ @ unknownUnderstand this error
+Index-CqeBVFd4.js:53 Error loading available slots: ee {message: 'Request failed with status code 404', name: 'AxiosError', code: 'ERR_BAD_REQUEST', config: {…}, request: XMLHttpRequest, …}
 $doctorId = $argv[1] ?? null;
 $specialtyId = $argv[2] ?? null;
 $dateArg = $argv[3] ?? null;
