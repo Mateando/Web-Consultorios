@@ -26,7 +26,11 @@ Route::get('/', function () {
     Route::get('/appointments/print-list', [AppointmentController::class, 'printList'])->name('appointments.printList');
 
     // API endpoint para obtener una cita como JSON (para prefill en modales)
-    Route::get('/api/appointments/{appointment}', [AppointmentController::class, 'apiShow'])->name('api.appointments.show');
+    // Restringir {appointment} a números para que rutas como /api/appointments/available-slots no
+    // sean capturadas por esta ruta paramétrica (causaba 404 al intentar resolver el model binding).
+    Route::get('/api/appointments/{appointment}', [AppointmentController::class, 'apiShow'])
+        ->whereNumber('appointment')
+        ->name('api.appointments.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // 2FA Google Authenticator

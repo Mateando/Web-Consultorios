@@ -69,13 +69,43 @@ class DoctorSchedule extends Model
     public function getAvailableTimeSlots()
     {
         $slots = [];
-        $start = strtotime($this->start_time);
-        $end = strtotime($this->end_time);
-        $duration = $this->appointment_duration * 60; // Convertir a segundos
 
-        while ($start < $end) {
-            $slots[] = date('H:i', $start);
-            $start += $duration;
+        $duration = (int) ($this->appointment_duration ?? 0);
+        if ($duration <= 0) {
+            return $slots;
+        }
+
+        // Intentar parsear start_time/end_time de forma segura con Carbon.
+        // Aceptamos que las propiedades puedan ser strings ("08:00"/"08:00:00") o instancias Carbon
+        try {
+            if ($this->start_time instanceof \Carbon\Carbon) {
+                $start = $this->start_time->copy();
+            } else {
+                // Permitimos formatos H:i:s y H:i
+                $start = \Carbon\Carbon::parse((string) $this->start_time);
+            }
+
+            if ($this->end_time instanceof \Carbon\Carbon) {
+                $end = $this->end_time->copy();
+            } else {
+                $end = \Carbon\Carbon::parse((string) $this->end_time);
+            }
+        } catch (\Throwable $e) {
+            // Si no se puede parsear, devolver array vacío para evitar errores
+            return $slots;
+        }
+
+        // Normalizar ambas fechas al mismo día para comparar solo horas (evita problemas de zona/fecha)
+        $start->setDate(1970, 1, 1);
+        $end->setDate(1970, 1, 1);
+
+        // Generar slots avanzando por minutos de duración
+        $safety = 0;
+        while ($start->lt($end)) {
+            $slots[] = $start->format('H:i');
+            $start = $start->copy()->addMinutes($duration);
+            // Safety guard to avoid infinite loops
+            if (++$safety > 1000) break;
         }
 
         return $slots;
