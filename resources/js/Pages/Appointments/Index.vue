@@ -170,7 +170,7 @@
                             :user-permissions="user_permissions"
                             :filtered-specialty-id="filters.specialty_id"
                             :available-days="availableDays"
-                            @event-click="editAppointment"
+                            @event-click="showAppointmentDetail"
                             @date-click="createAppointmentOnDate"
                         />
                     </div>
@@ -346,6 +346,16 @@
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
+                        <!-- Modal detalle simple para citas (abre al click en el calendario) -->
+                        <AppointmentDetailModal
+                            :show="showDetailModal"
+                            :appointment="selectedAppointment"
+                            :user-permissions="user_permissions"
+                            @close="() => { showDetailModal = false; selectedAppointment = null }"
+                            @edit="(appt) => { showDetailModal = false; editAppointment(appt) }"
+                            @delete="(appt) => { showDetailModal = false; deleteAppointment(appt) }"
+                            @print="(appt) => { printSingle(appt) }"
+                        />
             </div>
         </div>
     </AuthenticatedLayout>
@@ -358,6 +368,7 @@ import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import AppointmentCalendar from '@/Components/AppointmentCalendar.vue'
 import AppointmentModal from '@/Components/AppointmentModal.vue'
+import AppointmentDetailModal from '@/Components/AppointmentDetailModal.vue'
 import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
@@ -376,6 +387,7 @@ const currentView = ref('calendar')
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const selectedAppointment = ref(null)
+const showDetailModal = ref(false)
 const selectedDate = ref(null)
 const availableDays = ref([])
 const loadingAvailableDays = ref(false)
@@ -535,6 +547,28 @@ const editAppointment = (appointment) => {
     selectedAppointment.value = appointment
     selectedDate.value = null
     showEditModal.value = true
+}
+
+// Mostrar detalle de cita (invocado desde el calendario)
+const showAppointmentDetail = ({ event }) => {
+    if (!event) return
+    // Normalizar un objeto liviano para pasar al modal
+    const appt = {
+        id: event.id,
+        title: event.title,
+        start: event.start ? event.start.toISOString() : event.startStr || null,
+        end: event.end ? event.end.toISOString() : event.endStr || null,
+        appointment_date: event.start ? event.start.toISOString() : event.startStr || event.extendedProps?.start || null,
+        extendedProps: event.extendedProps || {}
+    }
+    selectedAppointment.value = appt
+    showDetailModal.value = true
+}
+
+const printSingle = (appointment) => {
+    if (!appointment || !appointment.id) return
+    const url = `/appointments/${appointment.id}/print`
+    window.open(url, '_blank')
 }
 
 // Función para verificar si un paciente puede editar una cita

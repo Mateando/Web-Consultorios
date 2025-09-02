@@ -446,6 +446,54 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * Imprimir una sola cita (vista imprimible)
+     */
+    public function print(Appointment $appointment)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Permisos: pacientes sólo su propia cita
+        if ($user->hasRole('paciente') && $appointment->patient_id !== $user->patient->id) {
+            abort(403, 'No tienes permisos para ver esta cita.');
+        }
+
+        $appointment->load(['patient.user', 'doctor.user', 'specialty']);
+
+        // Clinic info
+        try {
+            $clinic = ClinicSetting::first();
+        } catch (\Throwable $e) {
+            $clinic = null;
+        }
+
+        $logoUrl = null;
+        if ($clinic && $clinic->logo_path) {
+            try {
+                $logoUrl = Storage::url($clinic->logo_path);
+            } catch (\Throwable $e) {
+                $logoUrl = null;
+            }
+        }
+
+        $clinicInfo = [
+            'name' => $clinic->name ?? null,
+            'address' => $clinic->address ?? null,
+            'phone' => $clinic->phone ?? null,
+            'email' => $clinic->email ?? null,
+            'logo' => $logoUrl,
+        ];
+
+        return view('appointments.print', [
+            'appointment' => $appointment,
+            'clinicInfo' => $clinicInfo,
+        ]);
+    }
+
     public function edit(Appointment $appointment)
     {
         $user = Auth::user();
