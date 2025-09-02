@@ -179,7 +179,18 @@
                 <!-- Vista de Lista -->
                 <div v-if="currentView === 'list'" class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
-                            <!-- (diagnóstico temporal eliminado) -->
+                            <!-- Botón para imprimir la lista con los filtros actuales -->
+                            <div class="mb-4 flex justify-end no-print">
+                                <SecondaryButton
+                                    type="button"
+                                    @click="printList"
+                                    :disabled="!hasListResults"
+                                    :title="hasListResults ? 'Imprimir lista' : 'No hay resultados para imprimir'"
+                                    :class="['!px-3 !py-1 mr-3', !hasListResults ? 'opacity-50 cursor-not-allowed' : '']"
+                                >
+                                    Imprimir lista
+                                </SecondaryButton>
+                            </div>
                             <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
@@ -634,6 +645,42 @@ const formatWhatsAppUrl = (appointment) => {
     const encoded = encodeURIComponent(message)
     return `https://wa.me/${phoneClean}?text=${encoded}`
 }
+
+// Abre la vista imprimible de la lista con los filtros actuales como query string
+const printList = () => {
+    // Evitar abrir cuando no hay resultados
+    if (!hasListResults.value) {
+        return
+    }
+
+    // Construir query string desde filters.value
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(filters.value)) {
+        if (v !== null && v !== undefined && String(v) !== '') {
+            params.append(k, String(v))
+        }
+    }
+
+    // Si la cantidad de resultados es muy grande, pasar un indicador para que la vista muestre aviso
+    const total = appointments?.data?.length || 0
+    if (total > 500) {
+        params.append('large', '1')
+    }
+
+    const url = `/appointments/print-list${params.toString() ? `?${params.toString()}` : ''}`
+    // Abrir en nueva ventana para que el usuario pueda usar control de impresión del navegador
+    window.open(url, '_blank')
+}
+
+// Computed para decidir si hay resultados en la lista actualmente
+const appointments = computed(() => props.appointments || null)
+const hasListResults = computed(() => {
+    try {
+        return appointments.value && appointments.value.data && appointments.value.data.length > 0
+    } catch (e) {
+        return false
+    }
+})
 
 import { STATUS_COLORS, getStatusColor } from '@/colors/appointmentColors.js'
 

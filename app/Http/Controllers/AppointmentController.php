@@ -7,8 +7,10 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Specialty;
 use App\Models\Holiday;
+use App\Models\ClinicSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -121,6 +123,105 @@ class AppointmentController extends Controller
                 'can_edit_own_appointments' => $user->hasRole('paciente'), // Pacientes pueden editar con restricciones
                 'is_patient' => $user->hasRole('paciente'),
             ],
+        ]);
+    }
+
+    /**
+     * Mostrar vista imprimible con el listado de citas aplicando los mismos filtros que la lista.
+     */
+    public function printList(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Base query con relaciones
+        $query = Appointment::with(['patient.user', 'doctor.user', 'specialty']);
+
+        // Filtrar según el rol del usuario
+        if ($user->hasRole('medico')) {
+            $query->where('doctor_id', $user->doctor->id);
+        } elseif ($user->hasRole('paciente')) {
+            $query->where('patient_id', $user->patient->id);
+        }
+
+        // Aplicar filtros de búsqueda (mismos nombres que Index.vue usa)
+        if ($request->filled('doctor_id')) {
+            $query->where('doctor_id', $request->doctor_id);
+        }
+
+        if ($request->filled('specialty_id')) {
+            $query->where('specialty_id', $request->specialty_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('appointment_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('appointment_date', '<=', $request->end_date);
+        }
+
+        $appointments = $query->orderBy('appointment_date', 'asc')->get();
+
+        // Clinic info (similar a AppServiceProvider)
+        try {
+            $clinic = ClinicSetting::first();
+        } catch (\Throwable $e) {
+            $clinic = null;
+        }
+
+        $logoUrl = null;
+        if ($clinic && $clinic->logo_path) {
+            try {
+                $logoUrl = Storage::url($clinic->logo_path);
+            } catch (\Throwable $e) {
+                $logoUrl = null;
+            }
+        }
+
+        $clinicInfo = [
+            'name' => $clinic->name ?? null,
+            'address' => $clinic->address ?? null,
+            'phone' => $clinic->phone ?? null,
+            'email' => $clinic->email ?? null,
+            'logo' => $logoUrl,
+        ];
+
+        $generated_by = $user->name ?? 'Sistema';
+        $generated_at = Carbon::now();
+
+        // Etiquetas legibles para los filtros aplicados
+        $filterLabels = [
+            'doctor' => null,
+            'specialty' => null,
+            'status' => $request->status ?? null,
+            'start_date' => $request->start_date ?? null,
+            'end_date' => $request->end_date ?? null,
+        ];
+
+        if ($request->filled('doctor_id')) {
+            $doc = Doctor::with('user')->find($request->doctor_id);
+            $filterLabels['doctor'] = $doc ? ($doc->user->name ?? "Dr. #{$doc->id}") : null;
+        }
+
+        if ($request->filled('specialty_id')) {
+            $sp = Specialty::find($request->specialty_id);
+            $filterLabels['specialty'] = $sp ? $sp->name : null;
+        }
+
+        return view('appointments.print_list', [
+            'appointments' => $appointments,
+            'clinicInfo' => $clinicInfo,
+            'generated_by' => $generated_by,
+            'generated_at' => $generated_at,
+            'filterLabels' => $filterLabels,
         ]);
     }
 

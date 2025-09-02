@@ -51,6 +51,10 @@
             </button>
         </div>
 
+        @php
+            $isLarge = request()->query('large') === '1' || (isset($appointments) && $appointments->count() > 500);
+        @endphp
+
         <div class="header">
             @if(!empty($clinicInfo['logo']))
                 <img src="{{ $clinicInfo['logo'] }}" alt="Logo" class="logo">
@@ -72,6 +76,11 @@
                             @endif
                         @endforeach
                     </div>
+                @endif
+                @if($appointments->isEmpty())
+                    <div style="margin-top:8px; padding:8px; background:#fff3cd; border:1px solid #ffecb5; color:#856404; border-radius:6px; font-size:13px;">No se encontraron citas para los filtros seleccionados.</div>
+                @elseif($isLarge)
+                    <div style="margin-top:8px; padding:8px; background:#fffbe6; border:1px solid #fff1b8; color:#7a5900; border-radius:6px; font-size:13px;">Advertencia: la lista contiene muchas citas ({{ $appointments->count() }}). La impresión puede tardar o generar varias páginas.</div>
                 @endif
             </div>
         </div>
