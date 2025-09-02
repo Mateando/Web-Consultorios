@@ -519,6 +519,17 @@ class AppointmentController extends Controller
             abort(403, 'No tienes permisos para editar citas.');
         }
         
+        // Para staff: impedir editar citas que ya pasaron (no permitimos modificaciones de citas con fecha/hora anterior al momento actual)
+        try {
+            $originalAppointmentDate = Carbon::parse($appointment->appointment_date);
+            if ($originalAppointmentDate->isPast()) {
+                return redirect()->back()->withErrors(['error' => 'No puedes editar una cita que ya pasó.']);
+            }
+        } catch (\Exception $e) {
+            // Si no se puede parsear la fecha original, impedir edición como medida segura
+            return redirect()->back()->withErrors(['error' => 'Fecha de la cita inválida. No es posible editar.']);
+        }
+        
         $appointment->load(['patient.user', 'doctor.user', 'specialty']);
         
         // Para pacientes, solo mostrar opciones limitadas
@@ -593,6 +604,16 @@ class AppointmentController extends Controller
         } elseif (!$user->hasRole(['administrador', 'medico', 'recepcionista'])) {
             abort(403, 'No tienes permisos para editar citas.');
         }
+
+        // Para staff: impedir actualizar si la cita original ya pasó
+        try {
+            $originalAppointmentDate = Carbon::parse($appointment->appointment_date);
+            if ($originalAppointmentDate->isPast()) {
+                abort(403, 'No puedes editar una cita que ya pasó.');
+            }
+        } catch (\Exception $e) {
+            abort(403, 'Fecha de la cita inválida. No es posible editar.');
+        }
         
         // Para staff, validación completa
         $request->validate([
@@ -652,6 +673,41 @@ class AppointmentController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Cita actualizada exitosamente.');
+    }
+
+    /**
+     * Endpoint API para obtener una cita en JSON (usado por modales / AJAX)
+     */
+    public function apiShow(Appointment $appointment)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'No autorizado'], 401);
+        }
+
+        if ($user->hasRole('paciente') && $appointment->patient_id !== $user->patient->id) {
+            return response()->json(['error' => 'No tienes permisos para ver esta cita.'], 403);
+        } elseif (!$user->hasRole(['administrador', 'medico', 'recepcionista']) && !$user->hasRole('paciente')) {
+            return response()->json(['error' => 'No tienes permisos para ver esta cita.'], 403);
+        }
+
+        $appointment->load(['patient.user', 'doctor.user', 'specialty']);
+
+        // indicar si puede editarse (no pasada y no cancelada/completada)
+        $canEdit = true;
+        try {
+            $ad = Carbon::parse($appointment->appointment_date);
+            if ($ad->isPast() || in_array($appointment->status, ['cancelada', 'completada'])) {
+                $canEdit = false;
+            }
+        } catch (\Exception $e) {
+            $canEdit = false;
+        }
+
+        return response()->json([
+            'appointment' => $appointment,
+            'can_edit' => $canEdit,
+        ]);
     }
 
     public function destroy(Appointment $appointment)

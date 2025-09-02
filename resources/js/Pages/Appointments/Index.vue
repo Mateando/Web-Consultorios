@@ -334,15 +334,26 @@
                     </div>
                 </div>
 
-                <!-- Modal para crear/editar cita -->
+                <!-- Modal para crear (nuevo) -->
                         <AppointmentModal
-                            :show="showCreateModal || showEditModal"
-                            :appointment="selectedAppointment"
+                            :show="showCreateModal"
+                            :appointment="null"
                             :selected-date="selectedDate"
                             :doctors="doctors"
                             :patients="patients"
                             :specialties="specialties"
                             :initial-specialty-id="filters.specialty_id"
+                            @close="closeModal"
+                            @saved="appointmentSaved"
+                        />
+
+                        <!-- Modal independiente para editar -->
+                        <AppointmentEditModal
+                            :show="showEditModal"
+                            :appointment="selectedAppointment"
+                            :doctors="doctors"
+                            :patients="patients"
+                            :specialties="specialties"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
@@ -369,6 +380,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import AppointmentCalendar from '@/Components/AppointmentCalendar.vue'
 import AppointmentModal from '@/Components/AppointmentModal.vue'
 import AppointmentDetailModal from '@/Components/AppointmentDetailModal.vue'
+import AppointmentEditModal from '@/Components/AppointmentEditModal.vue'
 import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
