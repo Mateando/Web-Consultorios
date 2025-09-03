@@ -12,4 +12,9 @@ class InsuranceProvider extends Model
     protected $fillable = [
         'name','is_active'
     ];
+
+    public function doctors()
+    {
+        return $this->belongsToMany(\App\Models\Doctor::class, 'doctor_insurance_provider');
+    }
 }

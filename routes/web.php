@@ -20,6 +20,11 @@ Route::get('/', function () {
     ]);
 });
 
+// DEBUG: ruta pública temporal para verificar en el navegador que /doctors/* se resuelve
+Route::get('/doctors/insurance-providers-debug', function () {
+    return response('ok', 200);
+})->name('doctors.insurance-providers.debug');
+
 
 // Quitar después de validar que la URL es alcanzable tras los cambios.
     // Ruta para imprimir LISTADO de citas con filtros
@@ -93,10 +98,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Rutas para doctores (Solo admin y recepcionistas)
     Route::middleware('role:administrador|recepcionista')->group(function () {
-        Route::resource('doctors', DoctorController::class);
+        // Forzamos que el parámetro {doctor} solo acepte IDs numéricos para evitar
+        // que rutas literales como /doctors/insurance-providers sean capturadas
+        // por la ruta paramétrica del resource.
+        Route::resource('doctors', DoctorController::class)->where(['doctor' => '[0-9]+']);
         // Ruta para activar/desactivar doctor
         Route::patch('doctors/{doctor}/toggle-status', [DoctorController::class, 'toggleStatus'])
             ->name('doctors.toggle-status');
+    // CRUD para asignar obras sociales a doctores
+    Route::get('/doctors/insurance-providers', [\App\Http\Controllers\DoctorInsuranceProviderController::class, 'index'])->name('doctors.insurance-providers.index');
+    Route::put('/doctors/{doctor}/insurance-providers', [\App\Http\Controllers\DoctorInsuranceProviderController::class, 'update'])->name('doctors.insurance-providers.update');
     });
     
     // Rutas para administración (Solo admin)

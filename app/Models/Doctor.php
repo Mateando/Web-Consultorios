@@ -63,6 +63,11 @@ class Doctor extends Model
         return $this->hasMany(DoctorSchedule::class);
     }
 
+    public function insuranceProviders()
+    {
+        return $this->belongsToMany(\App\Models\InsuranceProvider::class, 'doctor_insurance_provider');
+    }
+
     // Obtener horarios para una especialidad específica
     public function schedulesForSpecialty($specialtyId)
     {

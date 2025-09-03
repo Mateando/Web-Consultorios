@@ -131,4 +131,28 @@ class DoctorController extends Controller
         $message = $newStatus ? 'activado' : 'desactivado';
         return redirect()->back()->with('success', "Doctor {$message} exitosamente");
     }
+
+    /**
+     * Mostrar un doctor (método mínimo para satisfacer la ruta resource).
+     * Si existe una vista Inertia `Doctors/Show` la renderiza, si no redirige a index.
+     */
+    public function show(Doctor $doctor)
+    {
+        // Solo roles con permisos pueden ver detalles
+        $user = request()->user();
+        if (!$user->hasAnyRole(['administrador', 'recepcionista', 'medico'])) {
+            abort(403, 'No tienes permisos para ver esta página');
+        }
+
+        // Intentar renderizar una página Inertia si existe en el frontend.
+        // Si el proyecto no tiene `Doctors/Show.vue`, redirigimos al índice.
+        try {
+            return Inertia::render('Doctors/Show', [
+                'doctor' => $doctor->load(['user', 'specialties', 'insuranceProviders']),
+            ]);
+        } catch (\Exception $e) {
+            // En caso de que no exista la página Vue u ocurra otro error, redirigimos al listado
+            return redirect()->route('doctors.index');
+        }
+    }
 }

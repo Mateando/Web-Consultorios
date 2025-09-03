@@ -24,6 +24,15 @@ const isAdminSection = computed(() => {
     }
 })
 
+// Computed para detectar si estamos en las rutas de listado/edición/creación/mostrar de Doctores
+const isDoctorsList = computed(() => {
+    try {
+        return route().current('doctors.index') || route().current('doctors.create') || route().current('doctors.edit') || route().current('doctors.show');
+    } catch (e) {
+        return false
+    }
+})
+
 // Persistencia en localStorage
 onMounted(() => {
     try {
@@ -125,14 +134,15 @@ const hasRole = (roles) => {
                     <!-- Submenú expandido (sidebar ancho) -->
                     <transition name="fade" mode="out-in">
                         <div v-show="openDoctors && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
-                            <NavLink v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Lista</NavLink>
+                            <NavLink v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.index')" :active="isDoctorsList">Listado</NavLink>
+                            <NavLink v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.insurance-providers.index')" :active="route().current('doctors.insurance-providers.*')">Obras Sociales</NavLink>
                             <NavLink v-if="hasRole(['administrador','medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</NavLink>
                         </div>
                     </transition>
                     <!-- Flyout cuando está colapsado -->
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
-                            <Link v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.index')" class="submenu-item" :class="route().current('doctors.*') ? 'active' : ''">Lista</Link>
+                            <Link v-if="hasRole(['administrador','recepcionista'])" :href="route('doctors.index')" class="submenu-item" :class="isDoctorsList ? 'active' : ''">Listado</Link>
                             <Link v-if="hasRole(['administrador','medico'])" :href="route('doctor-schedules.index')" class="submenu-item" :class="route().current('doctor-schedules.*') ? 'active' : ''">Horarios</Link>
                         </div>
                     </div>
