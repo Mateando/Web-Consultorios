@@ -73,7 +73,7 @@
                                                 {{ patient.user?.is_active === false ? 'Inactivo' : 'Activo' }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
                                             <SecondaryButton type="button" @click="editPatient(patient)" class="!px-2 !py-1 mr-3 text-indigo-600 hover:text-indigo-900 bg-white border-gray-200">Editar</SecondaryButton>
                                             <SecondaryButton
                                                 type="button"
@@ -83,6 +83,11 @@
                                             >
                                                 {{ patient.user?.is_active === false ? 'Activar' : 'Desactivar' }}
                                             </SecondaryButton>
+                                                          <Link :href="route('patients.appointments', patient.id)"
+                                                              :class="['text-sm px-3 py-1 rounded', (patient.appointments_count && patient.appointments_count>0) ? 'text-green-600 hover:text-green-900 bg-white' : 'text-gray-400 bg-gray-100 cursor-not-allowed']"
+                                                              :aria-disabled="!(patient.appointments_count && patient.appointments_count>0)">
+                                                              Ver citas
+                                                          </Link>
                                         </td>
                                     </tr>
                                     <tr v-if="!patients?.data || patients.data.length === 0">

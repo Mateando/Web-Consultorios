@@ -44,10 +44,9 @@
 </head>
 <body>
     <div class="printable-area">
-        <div class="no-print" style="text-align:right;margin-bottom:12px">
-            <button class="btn-primary" onclick="window.print()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 13H4a2 2 0 00-2 2v4a2 2 0 002 2h16a2 2 0 002-2v-4a2 2 0 00-2-2h-2M6 13h12v8H6v-8z"/></svg>
-                Imprimir
+            <div class="no-print" style="text-align:right;margin-bottom:12px">
+            <button class="btn-primary" onclick="window.print()" title="Imprimir" aria-label="Imprimir">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 13H4a2 2 0 00-2 2v4a2 2 0 002 2h16a2 2 0 002-2v-4a2 2 0 00-2-2h-2M6 13h12v8H6v-8z"/></svg>
             </button>
         </div>
 

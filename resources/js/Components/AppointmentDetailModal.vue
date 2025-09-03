@@ -98,7 +98,12 @@
             </span>
           </template>
 
-          <SecondaryButton @click="$emit('print', appointment)">Imprimir</SecondaryButton>
+          <SecondaryButton @click="$emit('print', appointment)">
+            <span class="inline-flex items-center gap-2">
+              <PrinterIcon class="h-4 w-4 text-gray-600" :title="'Imprimir'" />
+              <span class="sr-only">Imprimir</span>
+            </span>
+          </SecondaryButton>
           <PrimaryButton v-if="canDelete" class="bg-red-600 hover:bg-red-700" @click="$emit('delete', appointment)">Eliminar</PrimaryButton>
           <SecondaryButton class="ml-auto" @click="$emit('close')">Cerrar</SecondaryButton>
         </div>
@@ -125,6 +130,7 @@
     import { computed, ref } from 'vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
+import PrinterIcon from '@/Components/icons/PrinterIcon.vue'
 import WhatsAppIcon from '@/Components/icons/WhatsAppIcon.vue'
 import axios from 'axios'
 import { toastSuccess, toastError } from '@/utils/swal'

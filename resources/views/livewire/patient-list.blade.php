@@ -42,6 +42,8 @@
                         <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium flex gap-3">
                             <button wire:click="toggleStatus({{ $patient->id }})" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-gray-700 hover:bg-gray-50">{{ ($patient->user->is_active ?? true) ? 'Desactivar' : 'Activar' }}</button>
                             <button type="button" wire:click="$dispatch('openPatientForm', { patientId: {{ $patient->id }} })" class="text-sm inline-flex items-center rounded-md border border-transparent bg-white px-3 py-1 font-medium text-blue-600 hover:text-blue-900">Editar</button>
+                            @php $hasAppointments = ($patient->appointments_count ?? 0) > 0; @endphp
+                            <a href="{{ $hasAppointments ? route('patients.appointments', $patient->id) : '#' }}" class="text-sm inline-flex items-center rounded-md border border-transparent px-3 py-1 font-medium {{ $hasAppointments ? 'bg-white text-green-600 hover:text-green-900' : 'bg-gray-100 text-gray-400 cursor-not-allowed' }}">Ver citas</a>
                         </td>
                     </tr>
                 @empty

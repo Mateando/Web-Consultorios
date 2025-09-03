@@ -159,7 +159,12 @@
 
                                                 <div class="mt-3 sm:mt-0 sm:ml-3 sm:w-auto w-full flex gap-2 items-center">
                                                     <SecondaryButton v-if="step > 1" type="button" @click="prevStep" class="w-full sm:w-auto">Atrás</SecondaryButton>
-                                                    <SecondaryButton v-if="step === maxStep" type="button" @click="printAppointment" :disabled="!savedOnce" class="w-full sm:w-auto">Imprimir</SecondaryButton>
+                                                    <SecondaryButton v-if="step === maxStep" type="button" @click="printAppointment" :disabled="!savedOnce" class="w-full sm:w-auto">
+                                                        <span class="inline-flex items-center gap-2">
+                                                            <PrinterIcon class="h-4 w-4 text-gray-600" :title="'Imprimir'" />
+                                                            <span class="sr-only">Imprimir</span>
+                                                        </span>
+                                                    </SecondaryButton>
                                                     <SecondaryButton type="button" @click="$emit('close')" class="w-full sm:w-auto">Cancelar</SecondaryButton>
                                                 </div>
                                             </div>
@@ -175,6 +180,7 @@ import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
+import PrinterIcon from '@/Components/icons/PrinterIcon.vue'
 import { usePage } from '@inertiajs/vue3'
 
 const props = defineProps({

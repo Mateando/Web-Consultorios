@@ -188,7 +188,10 @@
                                     :title="hasListResults ? 'Imprimir lista' : 'No hay resultados para imprimir'"
                                     :class="['!px-3 !py-1 mr-3', !hasListResults ? 'opacity-50 cursor-not-allowed' : '']"
                                 >
-                                    Imprimir lista
+                                    <span class="inline-flex items-center gap-2">
+                                        <PrinterIcon class="h-4 w-4 text-gray-600" :title="hasListResults ? 'Imprimir lista' : ''" />
+                                        <span>Imprimir lista</span>
+                                    </span>
                                 </SecondaryButton>
                             </div>
                             <div class="overflow-x-auto">
@@ -386,6 +389,7 @@ import AppointmentEditModal from '@/Components/AppointmentEditModal.vue'
 import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
+import PrinterIcon from '@/Components/icons/PrinterIcon.vue'
 
 const props = defineProps({
     appointments: Object,

@@ -84,6 +84,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:administrador|medico|recepcionista')->group(function () {
     // Usar el controlador para la ruta principal de pacientes
     Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
+    // Ver citas de un paciente
+    Route::get('patients/{patient}/appointments', [PatientController::class, 'appointments'])->name('patients.appointments');
     // Ruta para activar/desactivar paciente
     Route::patch('patients/{patient}/toggle-status', [PatientController::class, 'toggleStatus'])
         ->name('patients.toggle-status');

@@ -22,7 +22,7 @@
 
     <div class="footer no-print">
         <p>Generado: {{ now()->toDateTimeString() }}</p>
-        <p><button onclick="window.print()">Imprimir</button></p>
+        <p><button onclick="window.print()" title="Imprimir" aria-label="Imprimir">Imprimir</button></p>
     </div>
 </body>
 </html>

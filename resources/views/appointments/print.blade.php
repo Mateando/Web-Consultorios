@@ -86,12 +86,11 @@
     </div>
 
     <div style="margin-top:16px; text-align:right" class="no-print">
-        <button class="btn-primary" onclick="window.print()">
+        <button class="btn-primary" onclick="window.print()" title="Imprimir" aria-label="Imprimir">
             <!-- simple print icon -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 9V3h12v6M6 14h12v7H6v-7z" />
             </svg>
-            Imprimir
         </button>
     </div>
 </body>

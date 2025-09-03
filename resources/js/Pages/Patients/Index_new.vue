@@ -54,12 +54,17 @@
                                                 {{ patient.status === 'inactive' ? 'Inactivo' : 'Activo' }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
                                             <SecondaryButton type="button" @click="editPatient(patient)" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</SecondaryButton>
                                             <SecondaryButton type="button" @click="togglePatientStatus(patient)" :class="{
                                                     'text-red-600 hover:text-red-900': patient.status !== 'inactive',
                                                     'text-green-600 hover:text-green-900': patient.status === 'inactive'
                                                 }">{{ patient.status === 'inactive' ? 'Activar' : 'Desactivar' }}</SecondaryButton>
+                                                          <Link :href="route('patients.appointments', patient.id)"
+                                                              :class="['text-sm px-3 py-1 rounded', (patient.appointments_count && patient.appointments_count>0) ? 'text-green-600 hover:text-green-900 bg-white' : 'text-gray-400 bg-gray-100 cursor-not-allowed']"
+                                                              :aria-disabled="!(patient.appointments_count && patient.appointments_count>0)">
+                                                              Ver citas
+                                                          </Link>
                                         </td>
                                     </tr>
                                     <tr v-if="!patients?.data || patients.data.length === 0">

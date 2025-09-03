@@ -40,6 +40,7 @@ class PatientList extends Component
         return Patient::query()
             ->select('patients.*')
             ->with('user')
+            ->withCount('appointments')
             ->leftJoin('users', 'users.id', '=', 'patients.user_id')
             ->when($this->search, function ($q) {
                 $term = '%' . $this->search . '%';

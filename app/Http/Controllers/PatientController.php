@@ -21,6 +21,7 @@ class PatientController extends Controller
             $patients = Patient::query()
                 ->select('patients.*')
                 ->with('user')
+                ->withCount('appointments')
                 ->leftJoin('users','users.id','=','patients.user_id')
                 ->when($search !== '', function($q) use ($search){
                     $q->where(function($qq) use ($search){
@@ -232,6 +233,32 @@ class PatientController extends Controller
             Log::error('Error toggling patient status: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Error al cambiar el estado del paciente.');
+        }
+    }
+
+    /**
+     * Mostrar las citas de un paciente (vista simple blade)
+     */
+    public function appointments(Patient $patient)
+    {
+        try {
+            $patient->load(['user']);
+
+            $appointments = \App\Models\Appointment::query()
+                ->where('patient_id', $patient->id)
+                ->with(['doctor.user', 'patient.user'])
+                ->orderBy('appointment_date', 'desc')
+                ->paginate(10)
+                ->withQueryString();
+
+            return Inertia::render('Patients/Appointments', [
+                'patient' => $patient,
+                'appointments' => $appointments,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error loading patient appointments (Inertia): '.$e->getMessage());
+            return redirect()->route('patients.index')->with('error', 'No se pudo cargar las citas del paciente.');
         }
     }
 
