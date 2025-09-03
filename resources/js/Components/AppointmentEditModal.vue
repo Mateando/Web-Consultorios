@@ -110,8 +110,6 @@
           <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button v-if="isStaff || editMode" type="submit" :disabled="form.processing || submitting" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Actualizar</button>
             <button v-else type="button" @click.prevent="enterEditMode" class="inline-flex ml-2 justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white">Editar</button>
-            <button type="button" @click="$emit('print', appointment)" class="inline-flex ml-2 justify-center rounded-md border border-gray-300 px-4 py-2 bg-white">Imprimir</button>
-            <button type="button" :disabled="!hasPhone" @click="openWhatsApp" :class="['inline-flex ml-2 justify-center rounded-md px-4 py-2', hasPhone ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500']">WhatsApp</button>
             <button type="button" @click="$emit('close')" class="mt-3 sm:mt-0 ml-2 inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white">Cerrar</button>
           </div>
         </form>
@@ -134,7 +132,7 @@ const props = defineProps({
   isStaff: Boolean,
   forceEdit: Boolean
 })
-const emit = defineEmits(['close', 'saved', 'print', 'consumed-force-edit'])
+const emit = defineEmits(['close', 'saved', 'consumed-force-edit'])
 
 const form = useForm({
   patient_id: '',
@@ -350,13 +348,6 @@ const submit = async () => {
   }
 }
 
-const openWhatsApp = () => {
-  const phone = (props.appointment?.patient?.phone || props.appointment?.patient_phone || '')
-  const num = phone.toString().replace(/[^+0-9]/g, '')
-  const text = encodeURIComponent(`Hola, respecto a su cita el ${appointmentDate.value} a las ${appointmentTime.value}`)
-  const url = `https://wa.me/${num}?text=${text}`
-  window.open(url, '_blank')
-}
 </script>
 
 <style scoped>
