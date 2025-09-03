@@ -10,6 +10,10 @@
                             <div class="flex-1 md:max-w-md">
                                 <form @submit.prevent class="flex gap-2 items-start">
                                     <input type="text" v-model="search" placeholder="Buscar por nombre o email" class="flex-1 rounded-md border-gray-300 shadow-sm text-sm" />
+                                    <select v-model="specialtyFilter" @change="applyFilters" class="rounded-md border-gray-300 shadow-sm text-sm">
+                                        <option value="">Todas las especialidades</option>
+                                        <option v-for="spec in specialties" :key="spec.id" :value="spec.id">{{ spec.name }}</option>
+                                    </select>
                                     <SecondaryButton type="button" v-if="search" @click="clearSearch">X</SecondaryButton>
                                 </form>
                                 <p v-if="isSearching" class="mt-1 text-xs text-gray-400">Buscando...</p>
@@ -39,7 +43,7 @@
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Especialidades</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
+                                        <!-- Matrícula column removed per request -->
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                     </tr>
@@ -55,7 +59,7 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ doctor.phone || 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ doctor.license_number }}</td>
+                                        <!-- Matrícula cell removed -->
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span :class="{'bg-green-100 text-green-800': doctor.user.is_active !== false,'bg-red-100 text-red-800': doctor.user.is_active === false}" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">{{ doctor.user.is_active === false ? 'Inactivo' : 'Activo' }}</span>
                                         </td>
@@ -65,7 +69,7 @@
                                         </td>
                                     </tr>
                                     <tr v-if="doctors.data && doctors.data.length === 0">
-                                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">No hay doctores registrados</td>
+                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay doctores registrados</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -116,17 +120,15 @@
                                     <input v-model="doctorForm.phone" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" :class="{'border-red-500': errors.phone}" />
                                     <p v-if="errors.phone" class="text-red-600 text-sm mt-1">{{ errors.phone }}</p>
                                 </div>
-                                <!-- Especialidades -->
+                                <!-- Especialidad (single) -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">Especialidades</label>
-                                    <div class="mt-2 space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2" :class="{'border-red-500': errors.specialties}">
-                                        <div v-for="spec in specialties" :key="spec.id" class="flex items-center">
-                                            <input :id="`specialty-${spec.id}`" v-model="doctorForm.specialties" :value="spec.id" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                                            <label :for="`specialty-${spec.id}`" class="ml-2 text-sm text-gray-700">{{ spec.name }}</label>
-                                        </div>
-                                    </div>
-                                    <p v-if="errors.specialties" class="text-red-600 text-sm mt-1">{{ errors.specialties }}</p>
-                                    <p class="text-gray-500 text-sm mt-1">Seleccione al menos una especialidad</p>
+                                    <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+                                    <select v-model="doctorForm.specialty_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" :class="{'border-red-500': errors.specialty_id}">
+                                        <option value="">Seleccione una especialidad</option>
+                                        <option v-for="spec in specialties" :key="spec.id" :value="spec.id">{{ spec.name }}</option>
+                                    </select>
+                                    <p v-if="errors.specialty_id" class="text-red-600 text-sm mt-1">{{ errors.specialty_id }}</p>
+                                    <p class="text-gray-500 text-sm mt-1">Seleccione la especialidad principal del doctor</p>
                                 </div>
                                 <!-- Matrícula -->
                                 <div>
@@ -171,6 +173,7 @@ const props = defineProps({
 })
 
 const search = ref(props.filters?.search || '')
+const specialtyFilter = ref(props.filters?.specialty_id || '')
 const isSearching = ref(false)
 let debounceTimer = null
 let lastSent = search.value
@@ -181,7 +184,7 @@ function triggerSearch(val){
     lastSent = normalized
     isSearching.value = true
     Inertia.cancelActiveVisits?.()
-    router.get(route('doctors.index'), { search: normalized }, {
+    router.get(route('doctors.index'), { search: normalized, specialty_id: specialtyFilter.value }, {
         only:['doctors','filters'],
         preserveState:true,
         replace:true,
@@ -208,6 +211,17 @@ const clearSearch = () => {
     if (debounceTimer) clearTimeout(debounceTimer)
     search.value = ''
     triggerSearch('')
+}
+
+const applyFilters = () => {
+    isSearching.value = true
+    Inertia.cancelActiveVisits?.()
+    router.get(route('doctors.index'), { search: search.value.trim(), specialty_id: specialtyFilter.value }, {
+        only:['doctors','filters'],
+        preserveState:true,
+        replace:true,
+        onFinish: () => { isSearching.value = false }
+    })
 }
 
 const paginationLinkClasses = (link) => {
@@ -261,7 +275,7 @@ const editDoctor = (doctor) => {
     email: doctor.user.email,
     password: '', // no cambiar password
     phone: doctor.phone,
-    specialties: doctor.specialties ? doctor.specialties.map(s => s.id) : [],
+    specialty_id: doctor.specialties && doctor.specialties.length ? doctor.specialties[0].id : '',
     license_number: doctor.license_number,
     consultation_fee: doctor.consultation_fee
   }
@@ -332,9 +346,12 @@ const submitDoctorForm = () => {
   const isEdit = showEditModal.value && selectedDoctor.value
   const url = isEdit ? `/doctors/${selectedDoctor.value.id}` : '/doctors'
   const method = isEdit ? 'put' : 'post'
-  router.visit(url, {
-    method: method,
-    data: doctorForm.value,
+    // prepare payload: ensure specialty_id is sent instead of specialties array
+    const payload = Object.assign({}, doctorForm.value)
+    if (payload.specialties) delete payload.specialties
+    router.visit(url, {
+        method: method,
+        data: payload,
     onSuccess: () => {
       processing.value = false
       closeModal()

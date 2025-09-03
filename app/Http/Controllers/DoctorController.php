@@ -21,6 +21,7 @@ class DoctorController extends Controller
         }
         
         $search = trim($request->get('search', ''));
+        $specialtyId = $request->get('specialty_id', '');
 
         $doctors = Doctor::query()
             ->select('doctors.*')
@@ -32,6 +33,11 @@ class DoctorController extends Controller
                        ->orWhere('users.email', 'like', "%{$search}%");
                 });
             })
+            ->when($specialtyId, function ($q) use ($specialtyId) {
+                $q->whereHas('specialties', function ($qq) use ($specialtyId) {
+                    $qq->where('specialties.id', $specialtyId);
+                });
+            })
             ->orderByRaw('LOWER(users.name)')
             ->paginate(6)
             ->withQueryString();
@@ -39,7 +45,7 @@ class DoctorController extends Controller
         return Inertia::render('Doctors/Index', [
             'doctors' => $doctors,
             'specialties' => Specialty::where('is_active', true)->get(),
-            'filters' => ['search' => $search]
+            'filters' => ['search' => $search, 'specialty_id' => $specialtyId]
         ]);
     }
 
@@ -50,8 +56,7 @@ class DoctorController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:20',
-            'specialties' => 'required|array|min:1',
-            'specialties.*' => 'exists:specialties,id',
+            'specialty_id' => 'required|exists:specialties,id',
             'license_number' => 'required|string|max:50|unique:doctors',
             'consultation_fee' => 'nullable|numeric|min:0',
             'availability_schedule' => 'nullable|json',
@@ -76,8 +81,8 @@ class DoctorController extends Controller
             'availability_schedule' => $request->availability_schedule,
         ]);
 
-        // Asignar especialidades al doctor
-        $doctor->specialties()->sync($request->specialties);
+    // Asignar la especialidad principal al doctor
+    $doctor->specialties()->sync([$request->specialty_id]);
 
         return redirect()->back()->with('success', 'Doctor creado exitosamente');
     }
@@ -88,8 +93,7 @@ class DoctorController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $doctor->user_id,
             'phone' => 'nullable|string|max:20',
-            'specialties' => 'required|array|min:1',
-            'specialties.*' => 'exists:specialties,id',
+            'specialty_id' => 'required|exists:specialties,id',
             'license_number' => 'required|string|max:50|unique:doctors,license_number,' . $doctor->id,
             'consultation_fee' => 'nullable|numeric|min:0',
             'availability_schedule' => 'nullable|json',
@@ -104,8 +108,8 @@ class DoctorController extends Controller
         // Actualizar doctor
         $doctor->update($request->except(['name', 'email', 'password', 'specialties']));
 
-        // Sincronizar especialidades
-        $doctor->specialties()->sync($request->specialties);
+    // Sincronizar la especialidad (solo una)
+    $doctor->specialties()->sync([$request->specialty_id]);
 
         return redirect()->back()->with('success', 'Doctor actualizado exitosamente');
     }
