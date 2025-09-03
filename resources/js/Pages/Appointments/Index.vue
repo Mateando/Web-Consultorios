@@ -293,46 +293,8 @@
                         </div>
 
                         <!-- Paginación -->
-                        <div class="mt-4" v-if="appointments && appointments.links">
-                            <nav class="flex items-center justify-between">
-                                <!-- Mobile: prev/next -->
-                                <div class="flex-1 flex justify-between sm:hidden">
-                                    <Link
-                                        v-if="appointments.prev_page_url"
-                                        :href="(function(){ try { const u = new URL(appointments.prev_page_url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return appointments.prev_page_url } })()"
-                                        class="relative inline-flex items-center px-4 py-2 border border-transparent bg-gray-800 text-xs font-semibold uppercase tracking-widest text-white rounded-md hover:bg-gray-700"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M12.293 16.293a1 1 0 010 1.414l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L8.414 10l5.293 5.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
-                                        Anterior
-                                    </Link>
-                                    <Link
-                                        v-if="appointments.next_page_url"
-                                        :href="(function(){ try { const u = new URL(appointments.next_page_url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return appointments.next_page_url } })()"
-                                        class="ml-3 relative inline-flex items-center px-4 py-2 border border-transparent bg-gray-800 text-xs font-semibold uppercase tracking-widest text-white rounded-md hover:bg-gray-700"
-                                    >
-                                        Siguiente
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.707 3.707a1 1 0 010-1.414l6 6a1 1 0 010 1.414l-6 6A1 1 0 016.293 15.293L11.586 10 6.293 4.707a1 1 0 011.414-1.414z" clip-rule="evenodd"/></svg>
-                                    </Link>
-                                </div>
-
-                                <!-- Desktop: numeric pagination -->
-                                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-center">
-                                    <div>
-                                        <span class="relative z-0 inline-flex shadow-sm rounded-md">
-                                            <template v-for="(link, idx) in appointments.links" :key="idx">
-                                                <Link
-                                                    v-if="link.url"
-                                                    :href="(function(){ try { const u = new URL(link.url, window.location.origin); u.searchParams.set('view', currentView.value); return u.toString() } catch(e){ return link.url } })()"
-                                                    :class="[ 'relative inline-flex items-center px-4 py-2 border text-sm font-medium', link.active ? 'bg-gray-800 text-white border-transparent' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' ]"
-                                                >
-                                                    {{ decodeHtml(link.label) }}
-                                                </Link>
-                                                <span v-else class="relative inline-flex items-center px-4 py-2 border bg-white text-gray-500 text-sm">{{ decodeHtml(link.label) }}</span>
-                                            </template>
-                                        </span>
-                                    </div>
-                                </div>
-                            </nav>
+                        <div class="mt-4">
+                            <Pagination :paginator="appointments" :extra-params="{ view: currentView }" />
                         </div>
                     </div>
                 </div>
@@ -390,6 +352,7 @@ import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 import PrinterIcon from '@/Components/icons/PrinterIcon.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 const props = defineProps({
     appointments: Object,
