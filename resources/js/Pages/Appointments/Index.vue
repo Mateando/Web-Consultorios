@@ -603,6 +603,10 @@ const openEditFromDetail = async (appointment) => {
         const res = await axios.get(`/api/appointments/${appointment.id}`)
         const data = res.data || {}
         const full = data.appointment || appointment
+        // Ensure we always expose appointment_time for downstream consumers
+        if (!full.appointment_time) {
+            full.appointment_time = full.appointment_date ? (new Date(full.appointment_date).toTimeString().slice(0,5)) : (full.start ? (new Date(full.start).toTimeString().slice(0,5)) : '')
+        }
         if (typeof data.can_edit !== 'undefined') full.can_edit = data.can_edit
         selectedAppointment.value = full
         // Mark force edit so modal opens in edit mode
@@ -610,8 +614,12 @@ const openEditFromDetail = async (appointment) => {
         showEditModal.value = true
     } catch (e) {
         console.error('Error fetching appointment for edit from detail:', e)
-        // Fallback: open with lightweight object — user can press Edit inside to trigger permission check
-        selectedAppointment.value = appointment
+        // Fallback: open with lightweight object — normalize appointment_time before opening
+        const fallback = Object.assign({}, appointment)
+        if (!fallback.appointment_time) {
+            fallback.appointment_time = fallback.appointment_date ? (new Date(fallback.appointment_date).toTimeString().slice(0,5)) : (fallback.start ? (new Date(fallback.start).toTimeString().slice(0,5)) : '')
+        }
+        selectedAppointment.value = fallback
         directOpenEdit.value = true
         showEditModal.value = true
     }
@@ -627,6 +635,7 @@ const showAppointmentDetail = ({ event }) => {
         start: event.start ? event.start.toISOString() : event.startStr || null,
         end: event.end ? event.end.toISOString() : event.endStr || null,
         appointment_date: event.start ? event.start.toISOString() : event.startStr || event.extendedProps?.start || null,
+        appointment_time: event.start ? (event.start.toTimeString().slice(0,5)) : (event.extendedProps?.appointment?.appointment_time || event.extendedProps?.appointment_time || ''),
         extendedProps: event.extendedProps || {}
     }
     selectedAppointment.value = appt

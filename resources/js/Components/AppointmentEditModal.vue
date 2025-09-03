@@ -50,6 +50,9 @@
                       <option value="">Seleccionar hora</option>
                       <option v-for="slot in slots" :key="slot" :value="slot">{{ slot }}</option>
                     </select>
+                    <div v-if="errors.appointment_time" class="mt-1 text-sm text-red-600">{{ errors.appointment_time }}</div>
+                    <div v-if="form.doctor_id && form.appointment_date && slots.length === 0" class="mt-1 text-sm text-yellow-600">No hay horarios disponibles para esta fecha</div>
+                    <div v-if="form.doctor_id && form.appointment_date && slots.length > 0" class="mt-1 text-sm text-green-600">{{ slots.length }} horarios disponibles</div>
                   </div>
                 </div>
 
@@ -69,7 +72,6 @@
                 <label class="block text-sm font-medium text-gray-700 mt-2">Notas</label>
                 <textarea v-model="form.notes" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" rows="3"></textarea>
               </div>
-
               <div v-else>
                 <div>
                   <div class="text-sm text-gray-500">Doctor</div>
@@ -146,6 +148,9 @@ const form = useForm({
   notes: '',
   status: 'programada'
 })
+
+// Exponer errores para la plantilla; useForm puede proveer form.errors
+const errors = computed(() => form.errors || {})
 
 const slots = ref([])
 const submitting = ref(false)

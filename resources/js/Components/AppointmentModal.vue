@@ -120,7 +120,7 @@
                                                             <p class="text-sm text-gray-700">Paciente: <strong>{{ patientName }}</strong></p>
                                                             <p class="text-sm text-gray-700">Especialidad: <strong>{{ specialtyName }}</strong></p>
                                                             <p class="text-sm text-gray-700">Doctor: <strong>{{ doctorName }}</strong></p>
-                                                            <p class="text-sm text-gray-700">Fecha y hora: <strong>{{ form.appointment_date }} {{ form.appointment_time }}</strong></p>
+                                                            <p class="text-sm text-gray-700">Fecha y hora: <strong>{{ (form.appointment_date || '') + ' ' + (form.appointment_time || '') }}</strong></p>
                                                             <p class="text-sm text-gray-700">Duración: <strong>{{ referenceDurationText }}</strong></p>
                                                             <p class="text-sm text-gray-700">Estado: <strong>{{ form.status }}</strong></p>
                                                             <div v-if="reasonName" class="mt-3">
