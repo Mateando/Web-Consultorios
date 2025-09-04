@@ -13,11 +13,14 @@ use App\Models\User;
 
 class AppointmentStatsController extends Controller
 {
+    use AppointmentStatsDateHelpers;
     public function index(Request $request)
     {
-        // Rango de fecha opcional (por defecto últimos 30 días)
-        $start = $request->query('start') ? Carbon::parse($request->query('start')) : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->query('end') ? Carbon::parse($request->query('end')) : Carbon::now()->endOfDay();
+        // Rango de fecha opcional (por defecto últimos 30 días) con sanitización defensiva
+        [$start, $end] = $this->resolveDateRange($request,
+            Carbon::now()->subDays(30)->startOfDay(),
+            Carbon::now()->endOfDay()
+        );
 
         // Base query
         $appointments = DB::table('appointments')->whereBetween('appointment_date', [$start, $end]);
@@ -246,8 +249,10 @@ class AppointmentStatsController extends Controller
      */
     public function volume(Request $request)
     {
-        $start = $request->query('start') ? Carbon::parse($request->query('start')) : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->query('end') ? Carbon::parse($request->query('end')) : Carbon::now()->endOfDay();
+        [$start, $end] = $this->resolveDateRange($request,
+            Carbon::now()->subDays(30)->startOfDay(),
+            Carbon::now()->endOfDay()
+        );
         $group = $request->query('group', 'day');
         $by = $request->query('by', null); // doctor, specialty, reason
 
@@ -361,8 +366,7 @@ class AppointmentStatsController extends Controller
      */
     public function exportCsv(Request $request)
     {
-        $res = $this->volume($request)->getData();
-        $rows = $res->data;
+    [$rows, $rangeStart, $rangeEnd] = $this->buildVolumeTableRows($request);
 
         $filename = 'appointments_volume_'.now()->format('Ymd_His').'.csv';
         $headers = [
@@ -373,13 +377,135 @@ class AppointmentStatsController extends Controller
         $callback = function() use ($rows) {
             $out = fopen('php://output', 'w');
             // header
-            fputcsv($out, array_keys((array)$rows[0] ?? ['period','group','total']));
-            foreach ($rows as $r) {
-                fputcsv($out, (array)$r);
+            $first = (array)($rows[0] ?? []);
+            if (empty($first)) {
+                fputcsv($out, ['period','group','total']);
+            } else {
+                fputcsv($out, array_keys($first));
             }
+            foreach ($rows as $r) { fputcsv($out, (array)$r); }
             fclose($out);
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export PDF (volumen básico) reutilizando volume() para consistencia.
+     */
+    public function exportPdf(Request $request)
+    {
+        [$rows, $rangeStart, $rangeEnd] = $this->buildVolumeTableRows($request);
+        // Preparar HTML simple con filas tabulares generadas.
+        $html = view('exports.appointments_volume_pdf', [
+            'generated_at' => now(),
+            'start' => $rangeStart,
+            'end' => $rangeEnd,
+            'rows' => $rows,
+        ])->render();
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadHTML($html)->setPaper('A4','portrait');
+        return $pdf->download('appointments_volume_'.now()->format('Ymd_His').'.pdf');
+    }
+
+    /**
+     * Export JSON crudo del volumen (útil para integraciones externas).
+     */
+    public function exportJson(Request $request)
+    {
+        $res = $this->volume($request)->getData();
+        return response()->json($res);
+    }
+}
+
+// Helpers privados
+// Trait helper para sanitizar fechas
+trait AppointmentStatsDateHelpers {
+    private function cleanDateParam($value): ?string {
+        if ($value === null) return null;
+        $v = trim((string)$value);
+        if ($v === '' || strtolower($v) === 'null' || strtolower($v) === 'undefined') return null;
+        return $v;
+    }
+
+    private function safeParseDate(?string $value, $default): Carbon {
+        if (!$value) return $default->copy();
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable $e) {
+            return $default->copy();
+        }
+    }
+
+    private function resolveDateRange(Request $request, Carbon $defaultStart, Carbon $defaultEnd): array {
+        $rawStart = $this->cleanDateParam($request->query('start'));
+        $rawEnd = $this->cleanDateParam($request->query('end'));
+        $start = $this->safeParseDate($rawStart, $defaultStart)->startOfDay();
+        $end = $this->safeParseDate($rawEnd, $defaultEnd)->endOfDay();
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+        if ($start->diffInDays($end) > 366) {
+            $start = $end->copy()->subDays(30)->startOfDay();
+        }
+        return [$start, $end];
+    }
+
+    // Genera filas planas para exportaciones (period, group, total)
+    private function buildVolumeTableRows(Request $request): array {
+        [$start, $end] = $this->resolveDateRange($request, Carbon::now()->subDays(30)->startOfDay(), Carbon::now()->endOfDay());
+        $by = $this->cleanDateParam($request->query('by'));
+
+        $rows = [];
+        if ($by === 'doctor') {
+            $raw = DB::table('appointments')
+                ->select(DB::raw('DATE(appointment_date) as period'), 'doctor_id', DB::raw('count(*) as total'))
+                ->whereBetween('appointment_date', [$start, $end])
+                ->groupBy('period','doctor_id')
+                ->orderBy('period')
+                ->get();
+            $doctorIds = $raw->pluck('doctor_id')->unique()->filter()->values();
+            $mapDoctors = Doctor::whereIn('id', $doctorIds)->with('user')->get()->keyBy('id');
+            foreach ($raw as $r) {
+                $name = $mapDoctors[$r->doctor_id]->user->name ?? ('Dr. '.$r->doctor_id);
+                $rows[] = [ 'period' => $r->period, 'group' => $name, 'total' => (int)$r->total ];
+            }
+        } elseif ($by === 'specialty') {
+            $raw = DB::table('appointments')
+                ->select(DB::raw('DATE(appointment_date) as period'), 'specialty_id', DB::raw('count(*) as total'))
+                ->whereBetween('appointment_date', [$start, $end])
+                ->groupBy('period','specialty_id')
+                ->orderBy('period')
+                ->get();
+            $specIds = $raw->pluck('specialty_id')->unique()->filter()->values();
+            $mapSpecs = Specialty::whereIn('id', $specIds)->get()->keyBy('id');
+            foreach ($raw as $r) {
+                $name = $mapSpecs[$r->specialty_id]->name ?? ('Esp. '.$r->specialty_id);
+                $rows[] = [ 'period' => $r->period, 'group' => $name, 'total' => (int)$r->total ];
+            }
+        } elseif ($by === 'reason') {
+            $raw = DB::table('appointments')
+                ->select(DB::raw('DATE(appointment_date) as period'), 'reason', DB::raw('count(*) as total'))
+                ->whereBetween('appointment_date', [$start, $end])
+                ->groupBy('period','reason')
+                ->orderBy('period')
+                ->get();
+            foreach ($raw as $r) {
+                $rows[] = [ 'period' => $r->period, 'group' => $r->reason ?? 'Sin motivo', 'total' => (int)$r->total ];
+            }
+        } else {
+            // Total simple por día
+            $raw = DB::table('appointments')
+                ->select(DB::raw('DATE(appointment_date) as period'), DB::raw('count(*) as total'))
+                ->whereBetween('appointment_date', [$start, $end])
+                ->groupBy('period')
+                ->orderBy('period')
+                ->get();
+            foreach ($raw as $r) {
+                $rows[] = [ 'period' => $r->period, 'group' => 'Total', 'total' => (int)$r->total ];
+            }
+        }
+
+        return [$rows, $start->toDateString(), $end->toDateString()];
     }
 }

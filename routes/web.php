@@ -93,6 +93,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
     // Historial clínico (vista inicial vacía)
     Route::get('patients-history', [PatientController::class, 'history'])->name('patients.history');
+    // API timeline clínico
+    Route::get('api/patients-history', [PatientController::class, 'apiHistory'])->name('api.patients.history');
+    // Exportaciones historial
+    Route::get('patients-history-export-csv', [PatientController::class, 'exportHistoryCsv'])->name('patients.history.export.csv');
+    Route::get('patients-history-export-pdf', [PatientController::class, 'exportHistoryPdf'])->name('patients.history.export.pdf');
     // Crear nuevo paciente
     Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
     // Actualizar paciente
@@ -212,6 +217,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('api.appointments.stats.volume');
     Route::get('/api/appointments/stats/export', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'exportCsv'])
         ->name('api.appointments.stats.export');
+    Route::get('/api/appointments/stats/export-pdf', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'exportPdf'])
+        ->name('api.appointments.stats.export.pdf');
+    Route::get('/api/appointments/stats/export-json', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'exportJson'])
+        ->name('api.appointments.stats.export.json');
     
         // Endpoint para auditar envíos de WhatsApp (solo roles autorizados)
         Route::post('/api/whatsapp-audits', [\App\Http\Controllers\WhatsappAuditController::class, 'store'])

@@ -10,14 +10,183 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+// PDF (se instala barryvdh/laravel-dompdf)
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PatientController extends Controller
 {
     public function history(Request $request)
     {
+        // Filtros iniciales (podrían venir de query params)
+        $patientId = $request->get('patient_id');
+        $type = $request->get('type'); // appointment, record, prescription (futuro)
+        $search = trim($request->get('search',''));
+
         return Inertia::render('Patients/History', [
-            'filters' => [],
+            'filters' => [
+                'patient_id' => $patientId,
+                'type' => $type,
+                'search' => $search,
+            ],
         ]);
+    }
+
+    /**
+     * API: timeline clínico (citas y en el futuro estudios, prescripciones, etc.)
+     */
+    public function apiHistory(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'nullable|integer|exists:patients,id',
+            'type' => 'nullable|in:appointment',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $patientId = $validated['patient_id'] ?? null;
+        $type = $validated['type'] ?? null;
+        $search = trim($validated['search'] ?? '');
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+        $query = $this->buildHistoryBaseQuery($patientId, $search, $dateFrom, $dateTo, $type);
+
+        $paginator = $query->paginate(15)->withQueryString();
+    $items = $paginator->getCollection()->map(function($a){
+            return [
+                'id' => $a->id,
+                'type' => 'appointment',
+                'date' => $a->appointment_date?->format('Y-m-d H:i'),
+                'status' => $a->status,
+                'reason' => $a->reason,
+                'notes' => $a->notes,
+                'doctor' => $a->doctor?->user?->name,
+                'specialty' => $a->specialty?->name,
+        'symptoms' => $a->symptoms,
+        'diagnosis' => $a->diagnosis,
+        'treatment' => $a->treatment,
+        'prescription' => $a->prescription,
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Construir query base reutilizable para historial.
+     */
+    protected function buildHistoryBaseQuery($patientId, $search, $dateFrom, $dateTo, $type)
+    {
+        $query = \App\Models\Appointment::query()
+            ->with(['doctor.user','patient.user','specialty'])
+            ->when($patientId, fn($q) => $q->where('patient_id',$patientId))
+            ->when($search !== '', function($q) use ($search){
+                $q->where(function($qq) use ($search){
+                    $qq->where('reason','like',"%{$search}%")
+                       ->orWhere('notes','like',"%{$search}%")
+                       ->orWhereHas('doctor.user', function($d) use ($search){
+                           $d->where('name','like',"%{$search}%");
+                       });
+                });
+            })
+            ->when($dateFrom, fn($q) => $q->whereDate('appointment_date','>=',$dateFrom))
+            ->when($dateTo, fn($q) => $q->whereDate('appointment_date','<=',$dateTo))
+            ->orderByDesc('appointment_date');
+        // $type reservado para futuros tipos (p.ej. estudios)
+        return $query;
+    }
+
+    /** Export CSV */
+    public function exportHistoryCsv(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'nullable|integer|exists:patients,id',
+            'type' => 'nullable|in:appointment',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+
+        $patientId = $validated['patient_id'] ?? null;
+        $search = trim($validated['search'] ?? '');
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+        $type = $validated['type'] ?? null;
+
+        $query = $this->buildHistoryBaseQuery($patientId, $search, $dateFrom, $dateTo, $type);
+
+        $filename = 'historial_clinico_'.now()->format('Ymd_His').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function() use ($query) {
+            $out = fopen('php://output', 'w');
+            // BOM UTF-8
+            fwrite($out, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($out, ['Fecha','Tipo','Estado','Doctor','Especialidad','Motivo','Síntomas','Diagnóstico','Tratamiento','Prescripción']);
+            $query->chunk(500, function($rows) use ($out) {
+                foreach($rows as $a) {
+                    fputcsv($out, [
+                        $a->appointment_date?->format('Y-m-d H:i'),
+                        'cita',
+                        $a->status,
+                        optional($a->doctor?->user)->name,
+                        optional($a->specialty)->name,
+                        $a->reason,
+                        $a->symptoms,
+                        $a->diagnosis,
+                        $a->treatment,
+                        $a->prescription,
+                    ]);
+                }
+            });
+            fclose($out);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /** Export PDF */
+    public function exportHistoryPdf(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'nullable|integer|exists:patients,id',
+            'type' => 'nullable|in:appointment',
+            'search' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+        ]);
+        $patientId = $validated['patient_id'] ?? null;
+        $search = trim($validated['search'] ?? '');
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+        $type = $validated['type'] ?? null;
+
+        $records = $this->buildHistoryBaseQuery($patientId, $search, $dateFrom, $dateTo, $type)
+            ->limit(2000) // límite de seguridad
+            ->get();
+        $clinic = \App\Models\ClinicSetting::query()->first();
+
+        $pdf = Pdf::loadView('exports.patients_history_pdf', [
+            'records' => $records,
+            'generated_at' => now(),
+            'clinic' => $clinic,
+        ])->setPaper('a4');
+
+        return $pdf->download('historial_clinico_'.now()->format('Ymd_His').'.pdf');
     }
     public function index(Request $request)
     {

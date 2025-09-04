@@ -6,46 +6,72 @@
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
           <h2 class="text-lg font-medium mb-6">Estadísticas de atención</h2>
 
-          <!-- Filters: improved responsive layout -->
-          <div class="grid grid-cols-1 gap-4 mb-4" style="grid-template-columns: repeat(auto-fit,minmax(180px,1fr));">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
-              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Desde</label>
-              <input type="date" v-model="filters.from" class="border rounded px-2 py-1 w-full min-w-0" />
+          <!-- Filtros reorganizados -->
+          <div class="flex flex-wrap items-end gap-4 mb-6">
+            <div class="flex flex-col w-32 min-w-[7rem]">
+              <label class="text-[11px] font-medium text-gray-500 tracking-wide uppercase mb-1">Desde</label>
+              <input type="date" v-model="filters.start" class="h-9 border-gray-300 rounded-md text-sm px-2" />
             </div>
-
-            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
-              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Hasta</label>
-              <input type="date" v-model="filters.to" class="border rounded px-2 py-1 w-full min-w-0" />
+            <div class="flex flex-col w-32 min-w-[7rem]">
+              <label class="text-[11px] font-medium text-gray-500 tracking-wide uppercase mb-1">Hasta</label>
+              <input type="date" v-model="filters.end" class="h-9 border-gray-300 rounded-md text-sm px-2" />
             </div>
-
-            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
-              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Doctor</label>
-              <select v-model="filters.doctor" class="border rounded px-2 py-1 w-full max-w-[240px]">
+            <div class="flex flex-col w-48">
+              <label class="text-[11px] font-medium text-gray-500 tracking-wide uppercase mb-1">Doctor</label>
+              <select v-model="filters.doctor" class="h-9 border-gray-300 rounded-md text-sm px-2">
                 <option value="">Todos</option>
                 <option v-for="d in doctors" :key="d.id" :value="d.id">{{ d.name }}</option>
               </select>
             </div>
-
-            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
-              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Especialidad</label>
-              <select v-model="filters.specialty" class="border rounded px-2 py-1 w-full max-w-[240px]">
+            <div class="flex flex-col w-48">
+              <label class="text-[11px] font-medium text-gray-500 tracking-wide uppercase mb-1">Especialidad</label>
+              <select v-model="filters.specialty" class="h-9 border-gray-300 rounded-md text-sm px-2">
                 <option value="">Todas</option>
                 <option v-for="s in specialties" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
-
-            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
-              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Desglose</label>
-              <select v-model="filters.by" class="border rounded px-2 py-1 w-full max-w-[200px]">
+            <div class="flex flex-col w-40">
+              <label class="text-[11px] font-medium text-gray-500 tracking-wide uppercase mb-1">Desglose</label>
+              <select v-model="filters.by" class="h-9 border-gray-300 rounded-md text-sm px-2">
                 <option value="">Total</option>
                 <option value="doctor">Por doctor</option>
                 <option value="specialty">Por especialidad</option>
               </select>
             </div>
-
-            <div class="flex items-center gap-2 justify-end">
-              <button @click="applyFilters" class="px-3 py-1 bg-blue-600 text-white rounded">Aplicar</button>
-              <button @click="exportCsv" class="px-3 py-1 border rounded">Exportar CSV</button>
+            <div class="flex items-center gap-2 ml-auto pb-1">
+              <SecondaryButton type="button" @click="clearFilters" class="!h-9 !px-3 flex items-center gap-1" :disabled="!hasAnyFilter">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.28 5.22a.75.75 0 010 1.06L4.56 8l1.72 1.72a.75.75 0 11-1.06 1.06L3.5 9.06l-1.72 1.72a.75.75 0 01-1.06-1.06L2.44 8 .72 6.28A.75.75 0 011.78 5.22L3.5 6.94l1.72-1.72a.75.75 0 011.06 0z" clip-rule="evenodd"/></svg>
+                Limpiar
+              </SecondaryButton>
+              <PrimaryButton type="button" @click="applyFilters" class="!h-9 !px-4 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M4 8h16M6 12h12M10 16h4" /></svg>
+                <span>Aplicar</span>
+              </PrimaryButton>
+              <div class="relative" @keydown.escape="closeExportMenus" data-export-container>
+                <SecondaryButton type="button" @click="onExportButtonClick" class="!h-9 !px-4 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v4H4zM4 12h16v8H4z" /></svg>
+                  <span>Exportar</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                </SecondaryButton>
+                <div v-if="ui.exportOpen" class="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 text-sm">
+                  <div v-if="ui.exportLoading" class="px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-gray-500" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                    Generando...
+                  </div>
+                  <button type="button" @click="doExport('csv')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar CSV (puede estar vacío)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                    <span>CSV <span v-if="lastExport==='csv'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                  </button>
+                  <button type="button" @click="doExport('pdf')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar PDF (puede estar vacío)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11V3m0 8a4 4 0 100 8 4 4 0 000-8zm6 4a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+                    <span>PDF <span v-if="lastExport==='pdf'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                  </button>
+                  <button type="button" @click="doExport('json')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar JSON (API) - puede estar vacío">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 0117.9 9H19a3 3 0 010 6h-1" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+                    <span>JSON <span v-if="lastExport==='json'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -142,9 +168,33 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">F. Exportación / Reportes</h3>
               <div class="text-sm text-gray-500 mb-4">Exportar datos filtrados en CSV/PDF y programar reportes.</div>
-              <div class="flex gap-2">
-                <button @click="exportCsv" class="px-3 py-1 bg-green-600 text-white rounded">Exportar CSV</button>
-                <button @click="exportPdf" class="px-3 py-1 border rounded">Exportar PDF</button>
+              <div class="flex gap-2 items-center">
+                <div class="relative" @keydown.escape="closeExportMenus" data-export-container>
+                  <PrimaryButton type="button" @click="ui.exportSectionOpen = !ui.exportSectionOpen" class="!py-2 !px-4 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-9 4h10m-7 4h4M5 4h14v16H5z" /></svg>
+                    <span>Exportar</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                  </PrimaryButton>
+                  <div v-if="ui.exportSectionOpen" class="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 text-sm">
+                    <div v-if="ui.exportLoading" class="px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
+                      <svg class="animate-spin h-4 w-4 text-gray-500" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                      Generando...
+                    </div>
+                    <button type="button" @click="doExport('csv')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar CSV (puede estar vacío)">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" /></svg>
+                      <span>CSV <span v-if="lastExport==='csv'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                    </button>
+                    <button type="button" @click="doExport('pdf')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar PDF (puede estar vacío)">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11V3m0 8a4 4 0 100 8 4 4 0 000-8zm6 4a6 6 0 11-12 0 6 6 0 0112 0z" /></svg>
+                      <span>PDF <span v-if="lastExport==='pdf'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                    </button>
+                    <button type="button" @click="doExport('json')" :disabled="ui.exportLoading" class="w-full text-left px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2" title="Exportar JSON (puede estar vacío)">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 0117.9 9H19a3 3 0 010 6h-1" /><path stroke-linecap="round" stroke-linejoin="round" d="M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+                      <span>JSON <span v-if="lastExport==='json'" class="text-[10px] text-indigo-600 font-semibold">(último)</span></span>
+                    </button>
+                  </div>
+                </div>
+                <span v-if="!hasAnyData" class="text-xs text-gray-400 italic">(Actualmente sin datos, la exportación saldrá vacía)</span>
               </div>
             </section>
           </div>
@@ -155,11 +205,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import { Head } from '@inertiajs/vue3'
 import axios from 'axios'
 import { Chart, registerables } from 'chart.js'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
 Chart.register(...registerables)
 
 const props = defineProps({
@@ -174,16 +226,74 @@ const stats = ref({
 const lastUpdated = ref(null)
 
 const filters = ref({
-  from: null,
-  to: null,
+  start: null,
+  end: null,
   doctor: '',
   specialty: '',
+  by: ''
 })
 
 const doctors = ref([])
 const specialties = ref([])
 
-const ui = ref({ top: 10, showAll: { productivity: false, admin: false }, loading: { productivity: false, admin: false, usage: false, demography: false }, meta: { productivity: { returned: 0, total: 0 }, admin: { returned: 0, total: 0 } } })
+const ui = ref({
+  top: 10,
+  showAll: { productivity: false, admin: false },
+  loading: { productivity: false, admin: false, usage: false, demography: false },
+  meta: { productivity: { returned: 0, total: 0 }, admin: { returned: 0, total: 0 } },
+  exportOpen: false,
+  exportSectionOpen: false,
+  exportLoading: false
+})
+
+// Computado para saber si hay algún dato en cualquiera de los bloques principales
+const hasAnyData = computed(() => {
+  try {
+    const vol = volumeChart && volumeChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    const prod = productivityChart && productivityChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    const usage = usageChart && usageChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    const demoG = demoGenderChart && demoGenderChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    const demoI = demoInsuranceChart && demoInsuranceChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    const adminD = adminChart && adminChart.data?.datasets?.some(ds => (ds.data || []).some(v => v > 0))
+    return !!(vol || prod || usage || demoG || demoI || adminD)
+  } catch (e) { return false }
+})
+
+const lastExport = ref(null)
+
+function doExport(format){
+  if(ui.value.exportLoading) return
+  ui.value.exportLoading = true
+  const base = '/api/appointments/stats/';
+  let endpoint = ''
+  if(format==='csv') endpoint='export'
+  else if(format==='pdf') endpoint='export-pdf'
+  else if(format==='json') endpoint='export-json'
+  // Copia limpia de filtros (evita mandar null/undefined literal)
+  const clean = {}
+  Object.entries(filters.value).forEach(([k,v]) => {
+    if(v !== null && v !== undefined && v !== '' ) clean[k]=v
+  })
+  const url = base + endpoint + '?' + new URLSearchParams(clean).toString()
+  // abrir en nueva pestaña (para csv/pdf) - json igual abre raw
+  window.open(url, '_blank')
+  lastExport.value = format
+  setTimeout(()=>{ ui.value.exportLoading = false }, 1200)
+}
+
+function onExportButtonClick(){
+  // Si ya se abrió antes y hay un formato previo, segundo clic hace export rápido del último formato
+  if(ui.value.exportOpen && lastExport.value){
+    doExport(lastExport.value)
+    return
+  }
+  ui.value.exportOpen = !ui.value.exportOpen
+}
+
+function closeExportMenus(){
+  ui.value.exportOpen = false
+  ui.value.exportSectionOpen = false
+}
 
 async function loadStats() {
   try {
@@ -477,6 +587,9 @@ onMounted(() => {
   loadVolumeChart()
   // Cargar otras métricas
   loadDashboardStats()
+
+  // Cerrar dropdowns al hacer clic fuera manualmente (sin directiva externa)
+  document.addEventListener('click', handleGlobalClick)
 })
 
 onBeforeUnmount(() => {
@@ -492,7 +605,17 @@ onBeforeUnmount(() => {
   demoGenderChart = null
   demoInsuranceChart = null
   adminChart = null
+  document.removeEventListener('click', handleGlobalClick)
 })
+
+function handleGlobalClick(e){
+  try {
+    const exportContainers = document.querySelectorAll('[data-export-container]')
+    let inside = false
+    exportContainers.forEach(el => { if(el.contains(e.target)) inside = true })
+    if(!inside) closeExportMenus()
+  } catch(err){}
+}
 
 function applyFilters() {
   loadStats()
@@ -511,5 +634,16 @@ function exportCsv() {
 function exportPdf() {
   const url = `/api/appointments/stats/export-pdf?` + new URLSearchParams(filters.value).toString()
   window.open(url, '_blank')
+}
+
+const hasAnyFilter = computed(() => !!(filters.value.start || filters.value.end || filters.value.doctor || filters.value.specialty || filters.value.by))
+
+function clearFilters(){
+  filters.value.start = null
+  filters.value.end = null
+  filters.value.doctor = ''
+  filters.value.specialty = ''
+  filters.value.by = ''
+  applyFilters()
 }
 </script>
