@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Doctor;
 use App\Models\Specialty;
+use App\Models\User;
 
 class AppointmentStatsController extends Controller
 {
@@ -21,7 +22,17 @@ class AppointmentStatsController extends Controller
         // Base query
         $appointments = DB::table('appointments')->whereBetween('appointment_date', [$start, $end]);
 
-        // 1) Volumen de citas: totales por día (últimos N días)
+    // top-N and show_all params (per-section)
+    $top = max(1, (int)$request->query('top', 10));
+    $showAll = $request->boolean('show_all', false);
+    $showAllProductivity = $request->query('show_all_productivity') ? (bool)$request->query('show_all_productivity') : false;
+    $showAllAdmin = $request->query('show_all_admin') ? (bool)$request->query('show_all_admin') : false;
+
+    // Hard cap to avoid returning enormous lists that could crash the server
+    $MAX_ROWS = 200;
+    if ($top > $MAX_ROWS) $top = $MAX_ROWS;
+
+    // 1) Volumen de citas: totales por día (últimos N días)
         $by_day = DB::table('appointments')
             ->select(DB::raw("DATE(appointment_date) as day"), DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
@@ -30,38 +41,45 @@ class AppointmentStatsController extends Controller
             ->get();
 
         // 1b) por profesional
-        $by_professional = DB::table('appointments')
+    $by_professional_q = DB::table('appointments')
             ->select('doctor_id', DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
             ->groupBy('doctor_id')
             ->orderByDesc('total')
-            ->limit(50)
-            ->get();
+            ;
+    if (!($showAll || $showAllProductivity)) $by_professional_q = $by_professional_q->limit($top);
+        $by_professional = $by_professional_q->get();
 
         // 1c) por especialidad
-        $by_specialty = DB::table('appointments')
+        $by_specialty_q = DB::table('appointments')
             ->select('specialty_id', DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
             ->groupBy('specialty_id')
             ->orderByDesc('total')
-            ->get();
+            ;
+    if (!$showAll) $by_specialty_q = $by_specialty_q->limit($top);
+        $by_specialty = $by_specialty_q->get();
 
         // 1d) por tipo de paciente (campo patient_type en patients)
-        $by_patient_type = DB::table('appointments')
+        $by_patient_type_q = DB::table('appointments')
             ->join('patients', 'appointments.patient_id', '=', 'patients.id')
             ->select('patients.patient_type', DB::raw('count(*) as total'))
             ->whereBetween('appointments.appointment_date', [$start, $end])
             ->groupBy('patients.patient_type')
             ->orderByDesc('total')
-            ->get();
+            ;
+    if (!$showAll) $by_patient_type_q = $by_patient_type_q->limit($top);
+        $by_patient_type = $by_patient_type_q->get();
 
         // 1e) por motivo (reason)
-        $by_reason = DB::table('appointments')
+        $by_reason_q = DB::table('appointments')
             ->select('reason', DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
             ->groupBy('reason')
             ->orderByDesc('total')
-            ->get();
+            ;
+    if (!$showAll) $by_reason_q = $by_reason_q->limit($top);
+        $by_reason = $by_reason_q->get();
 
         // canceladas
         $canceled = DB::table('appointments')
@@ -85,6 +103,9 @@ class AppointmentStatsController extends Controller
             ->orderByDesc('completed')
             ->get();
 
+        // total distinct doctors with completed appointments (before limiting)
+        $total_completed_doctors = $completed_by_doc->count();
+
         $days = max(1, $end->diffInDays($start));
         $avg_per_doc = $completed_by_doc->map(function ($r) use ($days) {
             return [
@@ -93,6 +114,23 @@ class AppointmentStatsController extends Controller
                 'completed' => $r->completed,
             ];
         });
+
+        // Map doctor names
+        $docIds = $avg_per_doc->pluck('doctor_id')->unique()->filter()->values()->all();
+        $doctorsMap = [];
+        if (!empty($docIds)) {
+            $doctors = Doctor::whereIn('id', $docIds)->with('user')->get()->keyBy('id');
+            foreach ($doctors as $id => $d) {
+                $doctorsMap[$id] = $d->user->name ?? ('Dr. '.$id);
+            }
+        }
+        $avg_per_doc = $avg_per_doc->map(function($r) use ($doctorsMap) {
+            $r['doctor_name'] = $doctorsMap[$r['doctor_id']] ?? ('Dr. '.$r['doctor_id']);
+            return $r;
+        });
+        if (!($showAll || $showAllProductivity)) {
+            $avg_per_doc = $avg_per_doc->slice(0, $top)->values();
+        }
 
         // Tiempo promedio por consulta (usar duration)
         $avg_duration = DB::table('appointments')
@@ -105,7 +143,7 @@ class AppointmentStatsController extends Controller
         $no_show = DB::table('appointments')->whereBetween('appointment_date', [$start, $end])->where('status', 'no_asistio')->count();
 
         // Horarios más demandados: agrupar por hora
-        $by_hour = DB::table('appointments')
+    $by_hour = DB::table('appointments')
             ->select(DB::raw('HOUR(appointment_date) as hour'), DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
             ->groupBy('hour')
@@ -121,30 +159,52 @@ class AppointmentStatsController extends Controller
             ->get();
 
         // Demografía: por edad y género (approx)
-        $by_gender = DB::table('appointments')
+        $by_gender_q = DB::table('appointments')
             ->join('patients', 'appointments.patient_id', '=', 'patients.id')
             ->join('users', 'patients.user_id', '=', 'users.id')
             ->select('users.gender', DB::raw('count(*) as total'))
             ->whereBetween('appointments.appointment_date', [$start, $end])
             ->groupBy('users.gender')
-            ->get();
+            ;
+    if (!$showAll) $by_gender_q = $by_gender_q->limit($top);
+        $by_gender = $by_gender_q->get();
 
         // Obras sociales más utilizadas
-        $by_insurance = DB::table('appointments')
+        $by_insurance_q = DB::table('appointments')
             ->join('patients', 'appointments.patient_id', '=', 'patients.id')
             ->select('patients.insurance_provider', DB::raw('count(*) as total'))
             ->whereBetween('appointments.appointment_date', [$start, $end])
             ->groupBy('patients.insurance_provider')
             ->orderByDesc('total')
-            ->get();
+            ;
+    if (!$showAll) $by_insurance_q = $by_insurance_q->limit($top);
+        $by_insurance = $by_insurance_q->get();
 
         // Indicadores administrativos: citas por creador
-        $by_creator = DB::table('appointments')
+        $by_creator_q = DB::table('appointments')
             ->select('created_by', DB::raw('count(*) as total'))
             ->whereBetween('appointment_date', [$start, $end])
             ->groupBy('created_by')
             ->orderByDesc('total')
-            ->get();
+            ;
+    if (!($showAll || $showAllAdmin)) $by_creator_q = $by_creator_q->limit($top);
+        $by_creator = $by_creator_q->get();
+
+    // Map creator user names
+        $creatorIds = $by_creator->pluck('created_by')->unique()->filter()->values()->all();
+        $usersMap = [];
+        if (!empty($creatorIds)) {
+            $users = User::whereIn('id', $creatorIds)->get()->keyBy('id');
+            foreach ($users as $id => $u) {
+                $usersMap[$id] = $u->name ?? ('User '.$id);
+            }
+        }
+        $by_creator = $by_creator->map(function($r) use ($usersMap) {
+            return [ 'created_by' => $r->created_by, 'creator_name' => $usersMap[$r->created_by] ?? ('User '.$r->created_by), 'total' => $r->total ];
+        });
+
+    // total distinct creators (before limiting)
+    $total_creators = DB::table('appointments')->whereBetween('appointment_date', [$start, $end])->distinct()->count('created_by');
 
         return response()->json([
             'range' => [ 'start' => $start->toDateString(), 'end' => $end->toDateString() ],
@@ -162,6 +222,7 @@ class AppointmentStatsController extends Controller
                 'avg_duration_minutes' => $avg_duration ? round($avg_duration,2) : null,
                 'attended' => $attended,
                 'no_show' => $no_show,
+                'meta' => [ 'total_doctors' => $total_completed_doctors ?? ($avg_per_doc->count()) ]
             ],
             'uso' => [
                 'by_hour' => $by_hour,
@@ -173,6 +234,7 @@ class AppointmentStatsController extends Controller
             ],
             'admin' => [
                 'by_creator' => $by_creator,
+                'meta' => [ 'total_creators' => $total_creators ?? count($by_creator) ]
             ],
         ]);
     }

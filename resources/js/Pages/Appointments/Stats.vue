@@ -6,40 +6,44 @@
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
           <h2 class="text-lg font-medium mb-6">Estadísticas de atención</h2>
 
-          <!-- Filters -->
-          <div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-4">
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600">Desde</label>
-              <input type="date" v-model="filters.from" class="border rounded px-2 py-1" />
+          <!-- Filters: improved responsive layout -->
+          <div class="grid grid-cols-1 gap-4 mb-4" style="grid-template-columns: repeat(auto-fit,minmax(180px,1fr));">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
+              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Desde</label>
+              <input type="date" v-model="filters.from" class="border rounded px-2 py-1 w-full min-w-0" />
             </div>
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600">Hasta</label>
-              <input type="date" v-model="filters.to" class="border rounded px-2 py-1" />
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
+              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Hasta</label>
+              <input type="date" v-model="filters.to" class="border rounded px-2 py-1 w-full min-w-0" />
             </div>
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600">Doctor</label>
-              <select v-model="filters.doctor" class="border rounded px-2 py-1">
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
+              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Doctor</label>
+              <select v-model="filters.doctor" class="border rounded px-2 py-1 w-full max-w-[240px]">
                 <option value="">Todos</option>
                 <option v-for="d in doctors" :key="d.id" :value="d.id">{{ d.name }}</option>
               </select>
             </div>
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600">Especialidad</label>
-              <select v-model="filters.specialty" class="border rounded px-2 py-1">
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
+              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Especialidad</label>
+              <select v-model="filters.specialty" class="border rounded px-2 py-1 w-full max-w-[240px]">
                 <option value="">Todas</option>
                 <option v-for="s in specialties" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600">Desglose</label>
-              <select v-model="filters.by" class="border rounded px-2 py-1">
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1 min-w-0">
+              <label class="text-sm text-gray-600 mb-1 sm:mb-0 sm:mr-2">Desglose</label>
+              <select v-model="filters.by" class="border rounded px-2 py-1 w-full max-w-[200px]">
                 <option value="">Total</option>
                 <option value="doctor">Por doctor</option>
                 <option value="specialty">Por especialidad</option>
               </select>
             </div>
 
-            <div class="ml-auto flex items-center gap-2">
+            <div class="flex items-center gap-2 justify-end">
               <button @click="applyFilters" class="px-3 py-1 bg-blue-600 text-white rounded">Aplicar</button>
               <button @click="exportCsv" class="px-3 py-1 border rounded">Exportar CSV</button>
             </div>
@@ -51,8 +55,8 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">A. Volumen de citas</h3>
               <div class="text-sm text-gray-500 mb-4">Número de citas por periodo y por desglose (doctor / especialidad / motivo).</div>
-              <div class="h-56 max-h-[480px] bg-gray-50 rounded p-2 overflow-hidden">
-                <canvas id="chart-volume-canvas" class="w-full h-full"></canvas>
+              <div class="bg-gray-50 rounded p-2 overflow-hidden" style="height:280px; max-height:420px;">
+                <canvas id="chart-volume-canvas" class="w-full" style="height:100% !important; max-height:100% !important;"></canvas>
               </div>
             </section>
 
@@ -60,26 +64,54 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">B. Productividad médica</h3>
               <div class="text-sm text-gray-500 mb-4">Citas atendidas, horas trabajadas estimadas y facturación por médico.</div>
-              <div id="chart-productivity" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráfico productividad]</div>
-              <canvas id="chart-productivity-canvas" class="w-full h-40"></canvas>
+              <div class="flex items-center gap-2 mb-2">
+                <div class="text-sm">Mostrar top</div>
+                <select v-model="ui.top" @change="applyFilters" class="border rounded px-2 py-1 pr-6 min-w-[56px] text-center">
+                  <option :value="5">5</option>
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                </select>
+                  <button @click="toggleShowAll('productivity')" :disabled="ui.loading.productivity" class="px-2 py-1 border rounded disabled:opacity-60 disabled:cursor-not-allowed">
+                  <template v-if="ui.loading.productivity">
+                    <svg class="animate-spin h-4 w-4 inline-block mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                    Cargando...
+                  </template>
+                  <template v-else>{{ ui.showAll.productivity ? 'Mostrar top' : 'Mostrar todo' }}</template>
+                </button>
+                  <div class="text-sm text-gray-500 ml-2">Mostrando {{ ui.meta.productivity.returned }} de {{ ui.meta.productivity.total }}</div>
+              </div>
+              <canvas id="chart-productivity-canvas" class="w-full" style="height:100% !important; max-height:100% !important;"></canvas>
             </section>
 
             <!-- C. Uso (aforo) -->
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">C. Uso (aforo)</h3>
               <div class="text-sm text-gray-500 mb-4">Porcentaje de ocupación por sala/hora y ratio cita/slot.</div>
-              <div id="chart-usage" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráfico uso]</div>
-              <canvas id="chart-usage-canvas" class="w-full h-40"></canvas>
+              <div class="relative">
+                <canvas id="chart-usage-canvas" class="w-full" style="height:100% !important; max-height:100% !important;"></canvas>
+                <div v-if="ui.loading.usage" class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                  <svg class="animate-spin h-6 w-6 text-gray-700" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                </div>
+              </div>
             </section>
 
             <!-- D. Demografía -->
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">D. Demografía</h3>
               <div class="text-sm text-gray-500 mb-4">Edad, sexo, aseguradora y tipo de paciente (frecuencia).</div>
-              <div id="chart-demo" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráficos demografía]</div>
               <div class="grid grid-cols-2 gap-2">
-                <canvas id="chart-demo-gender" class="w-full h-32"></canvas>
-                <canvas id="chart-demo-insurance" class="w-full h-32"></canvas>
+                <div class="relative">
+                  <canvas id="chart-demo-gender" class="w-full" style="height:90% !important; max-height:100% !important;"></canvas>
+                  <div v-if="ui.loading.demography" class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <svg class="animate-spin h-6 w-6 text-gray-700" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                  </div>
+                </div>
+                <div class="relative">
+                  <canvas id="chart-demo-insurance" class="w-full" style="height:90% !important; max-height:100% !important;"></canvas>
+                  <div v-if="ui.loading.demography" class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <svg class="animate-spin h-6 w-6 text-gray-700" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -87,8 +119,23 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">E. Indicadores administrativos</h3>
               <div class="text-sm text-gray-500 mb-4">Tiempos de espera, tasa de no-show, cancelaciones.</div>
-              <div id="chart-admin" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Indicadores admin]</div>
-              <canvas id="chart-admin-canvas" class="w-full h-40"></canvas>
+              <div class="flex items-center gap-2 mb-2">
+                <div class="text-sm">Mostrar top</div>
+                <select v-model="ui.top" @change="applyFilters" class="border rounded px-2 py-1 pr-6 min-w-[56px] text-center">
+                  <option :value="5">5</option>
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                </select>
+                  <button @click="toggleShowAll('admin')" :disabled="ui.loading.admin" class="px-2 py-1 border rounded disabled:opacity-60 disabled:cursor-not-allowed">
+                  <template v-if="ui.loading.admin">
+                    <svg class="animate-spin h-4 w-4 inline-block mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                    Cargando...
+                  </template>
+                  <template v-else>{{ ui.showAll.admin ? 'Mostrar top' : 'Mostrar todo' }}</template>
+                </button>
+                  <div class="text-sm text-gray-500 ml-2">Mostrando {{ ui.meta.admin.returned }} de {{ ui.meta.admin.total }}</div>
+              </div>
+              <canvas id="chart-admin-canvas" class="w-full" style="height:100% !important; max-height:100% !important;"></canvas>
             </section>
 
             <!-- F. Exportación / Reportes -->
@@ -136,6 +183,8 @@ const filters = ref({
 const doctors = ref([])
 const specialties = ref([])
 
+const ui = ref({ top: 10, showAll: { productivity: false, admin: false }, loading: { productivity: false, admin: false, usage: false, demography: false }, meta: { productivity: { returned: 0, total: 0 }, admin: { returned: 0, total: 0 } } })
+
 async function loadStats() {
   try {
   const res = await axios.get('/api/appointments/stats', { params: filters.value })
@@ -156,6 +205,53 @@ let usageChart = null
 let demoGenderChart = null
 let demoInsuranceChart = null
 let adminChart = null
+
+function safeDestroy(chartInstance, canvasId) {
+  try {
+    if (chartInstance) chartInstance.destroy()
+  } catch(e){}
+  try {
+    const c = document.getElementById(canvasId)
+    if (c) {
+      c.removeAttribute('width')
+      c.removeAttribute('height')
+      c.style.height = ''
+      c.style.maxHeight = ''
+    }
+  } catch(e){}
+}
+
+function prepareCanvas(canvasId, cssHeightPx, options = {}) {
+  try {
+    const c = document.getElementById(canvasId)
+    if (!c) return
+    // set CSS height so layout constrains it
+    // if forceSquare, enforce width == height (useful for pie/donut)
+    if (options.forceSquare) {
+      const parent = c.parentElement || c
+      const side = Math.max(120, Math.round(Math.min(parent.clientWidth / 2, cssHeightPx)))
+      c.style.width = side + 'px'
+      c.style.height = side + 'px'
+    } else {
+      c.style.height = cssHeightPx + 'px'
+      c.style.maxHeight = '100%'
+    }
+    // set pixel dimensions to match device pixel ratio to avoid Chart.js auto-resize issues
+    const ratio = window.devicePixelRatio || 1
+    // ensure parent width available
+    const parent = c.parentElement || c
+    const widthPx = Math.max(300, Math.round(parent.clientWidth))
+    // if forceSquare and we set explicit width, use computed widthPx from c.clientWidth
+    const computedWidth = options.forceSquare ? Math.round(c.clientWidth) : widthPx
+    c.width = Math.round(computedWidth * ratio)
+    const computedHeight = options.forceSquare ? Math.round(c.clientWidth) : cssHeightPx
+    c.height = Math.round(computedHeight * ratio)
+    // force canvas layout update
+    c.getContext && c.getContext('2d') && c.getContext('2d').scale && c.getContext('2d').setTransform(ratio,0,0,ratio,0,0)
+  } catch(e) {
+    // ignore
+  }
+}
 async function loadVolumeChart() {
   try {
     const params = Object.assign({}, filters.value)
@@ -205,6 +301,8 @@ async function loadVolumeChart() {
 
   const ctx = document.getElementById('chart-volume-canvas')
     if (!ctx) return
+    // Forzar altura en píxeles para evitar que Chart.js calcule un height enorme
+  try { prepareCanvas('chart-volume-canvas', 280) } catch(e){}
 
     if (volumeChart) {
       volumeChart.data.labels = labels
@@ -213,14 +311,14 @@ async function loadVolumeChart() {
       return
     }
 
-    volumeChart = new Chart(ctx, {
+  volumeChart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
         datasets
       },
       options: {
-        responsive: true,
+    responsive: false,
         maintainAspectRatio: false,
         elements: { bar: { borderRadius: 4 } },
         datasets: { bar: { maxBarThickness: 48 } },
@@ -237,22 +335,39 @@ async function loadVolumeChart() {
 
 async function loadDashboardStats() {
   try {
-    const res = await axios.get('/api/appointments/stats', { params: filters.value })
+  const params = Object.assign({}, filters.value)
+  params.top = ui.value.top
+  // send per-section flags so the server can limit each list independently
+  params.show_all_productivity = ui.value.showAll?.productivity ? 1 : 0
+  params.show_all_admin = ui.value.showAll?.admin ? 1 : 0
+  const res = await axios.get('/api/appointments/stats', { params })
     const payload = res.data || {}
 
+    // store meta counts for UI badges
+    try {
+      ui.value.meta.productivity.returned = (payload.productividad?.completed_by_doc || []).length
+      ui.value.meta.productivity.total = payload.productividad?.meta?.total_doctors || ui.value.meta.productivity.returned
+    } catch (e) {}
+
     // Productividad: usar payload.productividad.completed_by_doc
-    const completed = payload.productividad?.completed_by_doc || []
-    const prodLabels = completed.map(c => c.doctor_id)
-    const prodData = completed.map(c => c.completed)
+  const completed = payload.productividad?.completed_by_doc || []
+  // prefer doctor_name if API provided it
+  const prodLabels = completed.map(c => c.doctor_name || c.doctor_id)
+  const prodData = completed.map(c => c.completed)
     const prodCtx = document.getElementById('chart-productivity-canvas')
     if (prodCtx) {
-      if (productivityChart) {
-        productivityChart.data.labels = prodLabels
-        productivityChart.data.datasets[0].data = prodData
-        productivityChart.update()
-      } else {
-  productivityChart = new Chart(prodCtx, { type: 'bar', data: { labels: prodLabels, datasets: [{ label: 'Citas completadas', data: prodData, backgroundColor: 'rgba(16,185,129,0.8)'}] }, options: { responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:40}} } })
-      }
+      try { prepareCanvas('chart-productivity-canvas', 220) } catch(e){}
+        if (productivityChart) {
+          productivityChart.data.labels = prodLabels
+          productivityChart.data.datasets[0].data = prodData
+          productivityChart.update()
+          try { productivityChart.resize() } catch(e){}
+        } else {
+          // Ensure previous chart/canvas cleaned
+          safeDestroy(productivityChart, 'chart-productivity-canvas')
+          productivityChart = new Chart(prodCtx, { type: 'bar', data: { labels: prodLabels, datasets: [{ label: 'Citas completadas', data: prodData, backgroundColor: 'rgba(16,185,129,0.8)'}] }, options: { responsive:false, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:40}} } })
+          try { productivityChart.resize() } catch(e){}
+        }
     }
 
     // Uso: by_hour
@@ -261,13 +376,17 @@ async function loadDashboardStats() {
     const hoursData = byHour.map(h => h.total)
     const usageCtx = document.getElementById('chart-usage-canvas')
     if (usageCtx) {
+      ui.value.loading.usage = true
+      try { prepareCanvas('chart-usage-canvas', 220) } catch(e){}
       if (usageChart) {
         usageChart.data.labels = hours
         usageChart.data.datasets[0].data = hoursData
         usageChart.update()
       } else {
-  usageChart = new Chart(usageCtx, { type: 'bar', data: { labels: hours, datasets: [{ label: 'Citas por hora', data: hoursData, backgroundColor: 'rgba(255,159,64,0.8)'}] }, options: { responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+        safeDestroy(usageChart, 'chart-usage-canvas')
+  usageChart = new Chart(usageCtx, { type: 'bar', data: { labels: hours, datasets: [{ label: 'Citas por hora', data: hoursData, backgroundColor: 'rgba(255,159,64,0.8)'}] }, options: { responsive:false, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
       }
+      ui.value.loading.usage = false
     }
 
     // Demografía: gender & insurance
@@ -276,13 +395,17 @@ async function loadDashboardStats() {
     const gData = genders.map(g => g.total)
     const gCtx = document.getElementById('chart-demo-gender')
     if (gCtx) {
+      ui.value.loading.demography = true
+      try { prepareCanvas('chart-demo-gender', 160, { forceSquare: true }) } catch(e){}
       if (demoGenderChart) {
         demoGenderChart.data.labels = gLabels
         demoGenderChart.data.datasets[0].data = gData
         demoGenderChart.update()
       } else {
-  demoGenderChart = new Chart(gCtx, { type: 'pie', data: { labels: gLabels, datasets:[{ data: gData, backgroundColor: ['#60A5FA','#FB7185','#FBBF24'] }] }, options: { responsive:true, maintainAspectRatio:false } })
+        safeDestroy(demoGenderChart, 'chart-demo-gender')
+  demoGenderChart = new Chart(gCtx, { type: 'pie', data: { labels: gLabels, datasets:[{ data: gData, backgroundColor: ['#60A5FA','#FB7185','#FBBF24'] }] }, options: { responsive:false, maintainAspectRatio:false } })
       }
+      ui.value.loading.demography = false
     }
 
     const ins = payload.demografia?.by_insurance || []
@@ -290,32 +413,56 @@ async function loadDashboardStats() {
     const insData = ins.slice(0,10).map(i => i.total)
     const insCtx = document.getElementById('chart-demo-insurance')
     if (insCtx) {
+      try { prepareCanvas('chart-demo-insurance', 160) } catch(e){}
       if (demoInsuranceChart) {
         demoInsuranceChart.data.labels = insLabels
         demoInsuranceChart.data.datasets[0].data = insData
         demoInsuranceChart.update()
       } else {
-  demoInsuranceChart = new Chart(insCtx, { type: 'bar', data: { labels: insLabels, datasets:[{ label: 'Obras sociales', data: insData, backgroundColor: 'rgba(99,102,241,0.8)'}] }, options:{ responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+        safeDestroy(demoInsuranceChart, 'chart-demo-insurance')
+  demoInsuranceChart = new Chart(insCtx, { type: 'bar', data: { labels: insLabels, datasets:[{ label: 'Obras sociales', data: insData, backgroundColor: 'rgba(99,102,241,0.8)'}] }, options:{ responsive:false, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
       }
     }
 
     // Admin: by_creator
-    const creators = payload.admin?.by_creator || []
-    const crLabels = creators.map(c => c.created_by)
-    const crData = creators.map(c => c.total)
+  const creators = payload.admin?.by_creator || []
+  const crLabels = creators.map(c => c.creator_name || c.created_by)
+  const crData = creators.map(c => c.total)
+    try {
+      ui.value.meta.admin.returned = creators.length
+      ui.value.meta.admin.total = payload.admin?.meta?.total_creators || ui.value.meta.admin.returned
+    } catch (e) {}
     const adminCtx = document.getElementById('chart-admin-canvas')
     if (adminCtx) {
+      try { prepareCanvas('chart-admin-canvas', 220) } catch(e){}
       if (adminChart) {
         adminChart.data.labels = crLabels
         adminChart.data.datasets[0].data = crData
         adminChart.update()
       } else {
-  adminChart = new Chart(adminCtx, { type: 'bar', data: { labels: crLabels, datasets:[{ label: 'Citas creadas', data: crData, backgroundColor: 'rgba(107,114,128,0.8)'}] }, options:{ responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+        safeDestroy(adminChart, 'chart-admin-canvas')
+  adminChart = new Chart(adminCtx, { type: 'bar', data: { labels: crLabels, datasets:[{ label: 'Citas creadas', data: crData, backgroundColor: 'rgba(107,114,128,0.8)'}] }, options:{ responsive:false, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
       }
     }
 
   } catch (e) {
     // ignore
+  }
+}
+
+async function toggleShowAll(section) {
+  try {
+    // flip and set loading
+    if (!ui.value.showAll || typeof ui.value.showAll[section] === 'undefined') ui.value.showAll = Object.assign({}, ui.value.showAll || {}, { [section]: true })
+    else ui.value.showAll[section] = !ui.value.showAll[section]
+
+    ui.value.loading[section] = true
+    // reload metrics to reflect show_all change
+    await loadDashboardStats()
+  } catch (e) {
+    // noop
+  } finally {
+    ui.value.loading[section] = false
   }
 }
 
