@@ -47,6 +47,29 @@ watch(sidebarCollapsed, (val) => {
 });
 const page = usePage();
 
+// Computed helper para detectar la query param "view" en la URL de Inertia.
+// Si no hay query param, devolvemos 'calendar' solo cuando estamos en la ruta
+// principal de listado de citas (appointments.index). En otras rutas (p.ej. appointments.stats)
+// devolvemos null para evitar marcar por defecto el subitem Calendario.
+const appointmentsView = computed(() => {
+    try {
+        const url = page.url || '';
+        const query = url.includes('?') ? url.split('?')[1] : '';
+        const params = new URLSearchParams(query);
+        const v = params.get('view');
+        if (v) return v;
+        try {
+            // Si estamos en la ruta index de appointments, mantener comportamiento histórico
+            if (route().current('appointments.index')) return 'calendar';
+        } catch (e) {
+            // ignore
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+});
+
 // Mostrar flashes globales (toasts) con SweetAlert2
 const flash = computed(() => (page && page.props && page.props.value ? page.props.value.flash : null))
 watch(flash, (f) => {
@@ -126,15 +149,15 @@ const hasRole = (roles) => {
                     </button>
                     <transition name="fade" mode="out-in">
                         <div v-show="openAgenda && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
-                            <NavLink :href="route('appointments.index') + '?view=calendar'" :active="route().current('appointments.calendar')">Calendario</NavLink>
-                            <NavLink :href="route('appointments.index') + '?view=list'" :active="route().current('appointments.index')">Lista</NavLink>
+                            <NavLink :href="route('appointments.index') + '?view=calendar'" :active="appointmentsView === 'calendar'">Calendario</NavLink>
+                            <NavLink :href="route('appointments.index') + '?view=list'" :active="appointmentsView === 'list'">Lista</NavLink>
                             <NavLink :href="route('appointments.stats')" :active="route().current('appointments.stats')">Estadísticas de atención</NavLink>
                         </div>
                     </transition>
                     <div v-if="sidebarCollapsed" class="submenu-flyout">
                         <div class="flex flex-col gap-1">
-                            <Link :href="route('appointments.index') + '?view=calendar'" class="submenu-item" :class="route().current('appointments.calendar') ? 'active' : ''">Calendario</Link>
-                            <Link :href="route('appointments.index') + '?view=list'" class="submenu-item" :class="route().current('appointments.index') ? 'active' : ''">Lista</Link>
+                            <Link :href="route('appointments.index') + '?view=calendar'" class="submenu-item" :class="appointmentsView === 'calendar' ? 'active' : ''">Calendario</Link>
+                            <Link :href="route('appointments.index') + '?view=list'" class="submenu-item" :class="appointmentsView === 'list' ? 'active' : ''">Lista</Link>
                             <Link :href="route('appointments.stats')" class="submenu-item" :class="route().current('appointments.stats') ? 'active' : ''">Estadísticas de atención</Link>
                         </div>
                     </div>
@@ -276,8 +299,8 @@ const hasRole = (roles) => {
                     <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')">Dashboard</ResponsiveNavLink>
                     <ResponsiveNavLink :href="route('appointments.index')" :active="route().current('appointments.*')">Agenda</ResponsiveNavLink>
                     <div class="pl-4">
-                        <ResponsiveNavLink :href="route('appointments.index') + '?view=calendar'">Calendario</ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('appointments.index') + '?view=list'">Lista</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('appointments.index') + '?view=calendar'" :active="appointmentsView === 'calendar'">Calendario</ResponsiveNavLink>
+                        <ResponsiveNavLink :href="route('appointments.index') + '?view=list'" :active="appointmentsView === 'list'">Lista</ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('appointments.stats')">Estadísticas de atención</ResponsiveNavLink>
                     </div>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'medico', 'recepcionista'])" :href="route('patients.index')" :active="route().current('patients.*')">Pacientes</ResponsiveNavLink>
