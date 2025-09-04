@@ -91,6 +91,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:administrador|medico|recepcionista')->group(function () {
     // Usar el controlador para la ruta principal de pacientes
     Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
+    // Crear nuevo paciente
+    Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
+    // Actualizar paciente
+    Route::match(['put','patch'], 'patients/{patient}', [PatientController::class, 'update'])->name('patients.update')->whereNumber('patient');
+    // Eliminar (desactivar) paciente
+    Route::delete('patients/{patient}', [PatientController::class, 'destroy'])->name('patients.destroy')->whereNumber('patient');
     // Ver citas de un paciente
     Route::get('patients/{patient}/appointments', [PatientController::class, 'appointments'])->name('patients.appointments');
     // Ruta para activar/desactivar paciente

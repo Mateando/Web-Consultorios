@@ -15,12 +15,21 @@
                                 </h3>
 
                                 <!-- Indicador de pasos -->
-                                <div class="flex items-center justify-center mb-6" v-if="steps.length > 1">
+                                <div class="flex items-center justify-center mb-4" v-if="steps.length > 1">
                                     <template v-for="(s,i) in steps" :key="s.key">
                                         <div class="flex flex-col items-center mx-1">
-                                            <div :class="['h-3 w-3 rounded-full', currentStepIndex===i ? 'bg-blue-600' : completedStep(i) ? 'bg-blue-300' : 'bg-gray-300']"></div>
+                                            <div :class="['h-3 w-3 rounded-full transition',
+                                                stepHasErrors(s.key) ? 'bg-red-500 animate-pulse' :
+                                                (currentStepIndex===i ? 'bg-blue-600' : completedStep(i) ? 'bg-blue-300' : 'bg-gray-300'),
+                                                currentStepIndex===i ? 'ring-2 ring-offset-1 ring-blue-300' : ''
+                                            ]" :title="stepTooltip(s.key)"></div>
                                         </div>
                                     </template>
+                                </div>
+                                <div v-if="errorSummary.length" class="mb-6 p-3 text-xs rounded border border-red-300 bg-red-50 text-red-700 max-h-32 overflow-auto">
+                                    <ul class="list-disc ml-4 space-y-0.5">
+                                        <li v-for="(msg,i) in errorSummary" :key="i">{{ msg }}</li>
+                                    </ul>
                                 </div>
 
                                                                 <!-- Paso Identificación -->
@@ -245,9 +254,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { router } from '@inertiajs/vue3'
+// usar la función global `route()` provista por ZiggyVue/@routes
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
 import InputError from '@/Components/InputError.vue'
@@ -261,6 +271,7 @@ const emit = defineEmits(['close', 'saved'])
 
 const processing = ref(false)
 const errors = ref({})
+const errorSummary = ref([])
 
 const form = ref({
     name: '',
@@ -304,6 +315,15 @@ const steps = ref([
     { key:'clinicos2', label:'Clínicos 2' },
     { key:'confirmacion', label:'Confirmación' },
 ])
+// Mapa de campos por paso para navegar a errores
+const stepFieldMap = {
+    identificacion: ['name','email','secondary_email','document_type','document_number'],
+    contacto: ['password','phone','landline_phone','birth_date','gender'],
+    direccion: ['address','country','province','city'],
+    clinicos1: ['patient_type','emergency_contact_name','emergency_contact_phone','insurance_provider','insurance_number'],
+    clinicos2: ['allergies','medical_conditions','medications','blood_type','height','weight','observations','extra_observations'],
+    confirmacion: []
+}
 const currentStepIndex = ref(0)
 const currentStep = computed(()=>steps.value[currentStepIndex.value])
 const hasNext = computed(()=>currentStepIndex.value < steps.value.length -1)
@@ -311,6 +331,33 @@ const hasPrev = computed(()=>currentStepIndex.value > 0)
 const nextStep = () => { if(hasNext.value) currentStepIndex.value++ }
 const prevStep = () => { if(hasPrev.value) currentStepIndex.value-- }
 const completedStep = (i)=> i < currentStepIndex.value
+const stepHasErrors = (key) => Object.keys(errors.value).some(f => stepFieldMap[key]?.includes(f))
+const stepTooltip = (key) => stepHasErrors(key) ? 'Revisar campos con errores' : ''
+
+const handleValidationErrors = () => {
+    const fieldsWithErrors = Object.keys(errors.value)
+    errorSummary.value = []
+    if(!fieldsWithErrors.length) return
+    // Armar resumen (puede haber arrays de mensajes)
+    errorSummary.value = fieldsWithErrors.flatMap(f => Array.isArray(errors.value[f]) ? errors.value[f] : [errors.value[f]])
+    // Encontrar primer paso con error y saltar
+    for (let i=0;i<steps.value.length;i++) {
+        const sk = steps.value[i].key
+        if (stepFieldMap[sk]?.some(f => fieldsWithErrors.includes(f))) {
+            currentStepIndex.value = i
+            nextTick(() => {
+                const firstField = stepFieldMap[sk].find(f => fieldsWithErrors.includes(f))
+                if (firstField) {
+                    const el = document.getElementById(firstField)
+                    if (el) el.focus()
+                }
+                const modal = document.querySelector('.inline-block.align-bottom')
+                if (modal) modal.scrollTop = 0
+            })
+            break
+        }
+    }
+}
 
 // Selects dependientes
 const countries = ref([])
@@ -371,6 +418,7 @@ watch(() => props.show, (newValue) => {
         ])
     }
     errors.value = {}
+    errorSummary.value = []
 })
 
 const resetForm = () => {
@@ -465,11 +513,13 @@ const submitForm = () => {
     router[method](url, form.value, {
         onSuccess: () => {
             processing.value = false
+            errorSummary.value = []
             emit('saved', isEditing.value)
         },
         onError: (errorResponse) => {
             processing.value = false
             errors.value = errorResponse
+            handleValidationErrors()
         }
     })
 }
