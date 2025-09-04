@@ -264,6 +264,20 @@ class AppointmentController extends Controller
         ]);
     }
 
+    /**
+     * Página de estadísticas de atención (Inertia).
+     */
+    public function stats(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Renderizar la página Inertia; los datos se obtienen vía API (si se requiere)
+        return Inertia::render('Appointments/Stats');
+    }
+
     public function store(Request $request)
     {
         $user = Auth::user();

@@ -20,12 +20,6 @@ Route::get('/', function () {
     ]);
 });
 
-// DEBUG: ruta pública temporal para verificar en el navegador que /doctors/* se resuelve
-Route::get('/doctors/insurance-providers-debug', function () {
-    return response('ok', 200);
-})->name('doctors.insurance-providers.debug');
-
-
 // Quitar después de validar que la URL es alcanzable tras los cambios.
     // Ruta para imprimir LISTADO de citas con filtros
     Route::get('/appointments/print-list', [AppointmentController::class, 'printList'])->name('appointments.printList');
@@ -44,8 +38,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/profile/2fa/disable', [\App\Http\Controllers\TwoFactorController::class, 'disable'])->name('profile.2fa.disable');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    
     // Rutas de citas - todos los usuarios autenticados pueden ver/gestionar citas
-    Route::resource('appointments', AppointmentController::class)->middleware('validate.active');
+    // Forzamos que el parámetro {appointment} solo acepte IDs numéricos para evitar
+    // que rutas literales como /appointments/stats sean capturadas por la ruta paramétrica
+    // del resource (causaba 404 al intentar resolver el model binding).
+    Route::resource('appointments', AppointmentController::class)
+        ->where(['appointment' => '[0-9]+'])
+        ->middleware('validate.active');
+
+    // Página de estadísticas de atención (Inertia) — ruta dedicada
+    Route::get('/appointments/stats', [\App\Http\Controllers\AppointmentController::class, 'stats'])
+        ->name('appointments.stats');
     
     // Ruta para obtener doctores por especialidad
     Route::get('/api/doctors-by-specialty', [AppointmentController::class, 'getDoctorsBySpecialty'])->name('doctors.by-specialty');
@@ -56,13 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ruta para obtener días disponibles por especialidad
     Route::get('/api/specialty-available-days', [AppointmentController::class, 'getSpecialtyAvailableDays'])->name('specialty.available-days');
     
-    // Ruta de debug temporal (SIN autenticación)
-    Route::get('/debug/specialty-days/{specialtyId}', function($specialtyId) {
-        $controller = new \App\Http\Controllers\AppointmentController();
-        $request = new \Illuminate\Http\Request();
-        $request->merge(['specialty_id' => $specialtyId]);
-        return $controller->getSpecialtyAvailableDays($request);
-    });
+    // ...existing code...
     
     // Ruta para que pacientes cancelen sus citas
     Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
@@ -194,6 +192,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/api/config/appointment-reasons', [\App\Http\Controllers\AdminConfigController::class,'apiAppointmentReasons'])->name('api.config.appointment-reasons');
     Route::get('/api/config/study-types', [\App\Http\Controllers\AdminConfigController::class,'apiStudyTypes'])->name('api.config.study-types');
         Route::get('/api/config/medical-order-templates/active', [\App\Http\Controllers\AdminConfigController::class,'apiActiveMedicalOrderTemplates'])->name('api.config.medical-order-templates.active');
+
+    // Endpoint API para estadísticas de citas (dashboard)
+    Route::get('/api/appointments/stats', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'index'])
+        ->name('api.appointments.stats');
     
         // Endpoint para auditar envíos de WhatsApp (solo roles autorizados)
         Route::post('/api/whatsapp-audits', [\App\Http\Controllers\WhatsappAuditController::class, 'store'])
