@@ -13,6 +13,12 @@ use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
+    public function history(Request $request)
+    {
+        return Inertia::render('Patients/History', [
+            'filters' => [],
+        ]);
+    }
     public function index(Request $request)
     {
         try {

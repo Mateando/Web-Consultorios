@@ -91,6 +91,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:administrador|medico|recepcionista')->group(function () {
     // Usar el controlador para la ruta principal de pacientes
     Route::get('patients', [PatientController::class, 'index'])->name('patients.index');
+    // Historial clínico (vista inicial vacía)
+    Route::get('patients-history', [PatientController::class, 'history'])->name('patients.history');
     // Crear nuevo paciente
     Route::post('patients', [PatientController::class, 'store'])->name('patients.store');
     // Actualizar paciente

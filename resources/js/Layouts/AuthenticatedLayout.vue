@@ -14,6 +14,7 @@ const openDoctors = ref(false);
 const openAdmin = ref(false);
 const openConfig = ref(false);
 const openAgenda = ref(false);
+const openPatients = ref(false);
 
 // Computed helpers para evitar que "Administración" se active cuando estamos
 // dentro de admin.config.* (p.ej. admin.config.holidays)
@@ -96,6 +97,9 @@ onMounted(() => {
     if (route().current('appointments.*')) {
         openAgenda.value = true;
     }
+    if (route().current('patients.*')) {
+        openPatients.value = true;
+    }
 });
 
 // Función para verificar si el usuario tiene alguno de los roles especificados
@@ -154,14 +158,23 @@ const hasRole = (roles) => {
                     </div>
                 </div>
                 <div v-if="hasRole(['administrador', 'medico', 'recepcionista'])" class="relative group">
-                    <NavLink :href="route('patients.index')" :active="route().current('patients.*')">
-                        <span class="flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
-                            <!-- <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 3.13a4 4 0 010 7.75M8 3.13a4 4 0 000 7.75" stroke-linecap="round" stroke-linejoin="round"/></svg> -->
-                            <span v-if="!sidebarCollapsed" class="ml-2">Pacientes</span>
-                        </span>
-                    </NavLink>
-                    <div v-if="sidebarCollapsed" class="tooltip">Pacientes</div>
+                    <button type="button" @click="!sidebarCollapsed && (openPatients = !openPatients)" :class="['w-full text-left px-2 py-2 rounded-md transition flex items-center gap-2', route().current('patients.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50']">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+                        <span v-if="!sidebarCollapsed" class="flex-1">Pacientes</span>
+                        <svg v-if="!sidebarCollapsed" :class="['h-4 w-4 transition-transform', openPatients ? 'rotate-90' : '']" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                    <transition name="fade" mode="out-in">
+                        <div v-show="openPatients && !sidebarCollapsed" class="mt-1 pl-6 flex flex-col space-y-1">
+                            <NavLink :href="route('patients.index')" :active="route().current('patients.index')">Listado</NavLink>
+                            <NavLink :href="route('patients.history')" :active="route().current('patients.history')">Historial clínico</NavLink>
+                        </div>
+                    </transition>
+                    <div v-if="sidebarCollapsed" class="submenu-flyout">
+                        <div class="flex flex-col gap-1">
+                            <Link :href="route('patients.index')" class="submenu-item" :class="route().current('patients.index') ? 'active' : ''">Listado</Link>
+                            <Link :href="route('patients.history')" class="submenu-item" :class="route().current('patients.history') ? 'active' : ''">Historial clínico</Link>
+                        </div>
+                    </div>
                 </div>
                 <!-- Menú desplegable Doctores -->
                 <div v-if="hasRole(['administrador','recepcionista','medico'])" class="relative group">
@@ -294,7 +307,13 @@ const hasRole = (roles) => {
                         <ResponsiveNavLink :href="route('appointments.index') + '?view=list'" :active="appointmentsView === 'list'">Lista</ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('appointments.stats')">Estadísticas de atención</ResponsiveNavLink>
                     </div>
-                    <ResponsiveNavLink v-if="hasRole(['administrador', 'medico', 'recepcionista'])" :href="route('patients.index')" :active="route().current('patients.*')">Pacientes</ResponsiveNavLink>
+                    <div v-if="hasRole(['administrador', 'medico', 'recepcionista'])" class="pl-0">
+                        <div class="text-xs font-semibold text-gray-400 mt-3 mb-1">Pacientes</div>
+                        <div class="pl-4 space-y-1">
+                            <ResponsiveNavLink :href="route('patients.index')" :active="route().current('patients.index')">Listado</ResponsiveNavLink>
+                            <ResponsiveNavLink :href="route('patients.history')" :active="route().current('patients.history')">Historial clínico</ResponsiveNavLink>
+                        </div>
+                    </div>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Doctores</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador', 'medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</ResponsiveNavLink>
                     <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="isAdminSection">Administración</ResponsiveNavLink>
@@ -325,7 +344,13 @@ const hasRole = (roles) => {
                                 <ResponsiveNavLink :href="route('appointments.index') + '?view=list'">Lista</ResponsiveNavLink>
                                 <ResponsiveNavLink :href="route('appointments.stats')">Estadísticas de atención</ResponsiveNavLink>
                             </div>
-                        <ResponsiveNavLink v-if="hasRole(['administrador', 'medico', 'recepcionista'])" :href="route('patients.index')" :active="route().current('patients.*')">Pacientes</ResponsiveNavLink>
+                        <div v-if="hasRole(['administrador', 'medico', 'recepcionista'])" class="pl-0">
+                            <div class="text-xs font-semibold text-gray-400 mt-3 mb-1">Pacientes</div>
+                            <div class="pl-4 space-y-1">
+                                <ResponsiveNavLink :href="route('patients.index')" :active="route().current('patients.index')">Listado</ResponsiveNavLink>
+                                <ResponsiveNavLink :href="route('patients.history')" :active="route().current('patients.history')">Historial clínico</ResponsiveNavLink>
+                            </div>
+                        </div>
                         <ResponsiveNavLink v-if="hasRole(['administrador', 'recepcionista'])" :href="route('doctors.index')" :active="route().current('doctors.*')">Doctores</ResponsiveNavLink>
                         <ResponsiveNavLink v-if="hasRole(['administrador', 'medico'])" :href="route('doctor-schedules.index')" :active="route().current('doctor-schedules.*')">Horarios</ResponsiveNavLink>
                         <ResponsiveNavLink v-if="hasRole(['administrador'])" :href="route('admin.index')" :active="isAdminSection">Administración</ResponsiveNavLink>
