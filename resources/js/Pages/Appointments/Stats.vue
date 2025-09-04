@@ -51,7 +51,7 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">A. Volumen de citas</h3>
               <div class="text-sm text-gray-500 mb-4">Número de citas por periodo y por desglose (doctor / especialidad / motivo).</div>
-              <div class="h-64 bg-gray-50 rounded p-2">
+              <div class="h-56 max-h-[480px] bg-gray-50 rounded p-2 overflow-hidden">
                 <canvas id="chart-volume-canvas" class="w-full h-full"></canvas>
               </div>
             </section>
@@ -60,28 +60,35 @@
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">B. Productividad médica</h3>
               <div class="text-sm text-gray-500 mb-4">Citas atendidas, horas trabajadas estimadas y facturación por médico.</div>
-              <div id="chart-productivity" class="h-48 bg-gray-50 rounded flex items-center justify-center">[Gráfico productividad]</div>
+              <div id="chart-productivity" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráfico productividad]</div>
+              <canvas id="chart-productivity-canvas" class="w-full h-40"></canvas>
             </section>
 
             <!-- C. Uso (aforo) -->
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">C. Uso (aforo)</h3>
               <div class="text-sm text-gray-500 mb-4">Porcentaje de ocupación por sala/hora y ratio cita/slot.</div>
-              <div id="chart-usage" class="h-48 bg-gray-50 rounded flex items-center justify-center">[Gráfico uso]</div>
+              <div id="chart-usage" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráfico uso]</div>
+              <canvas id="chart-usage-canvas" class="w-full h-40"></canvas>
             </section>
 
             <!-- D. Demografía -->
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">D. Demografía</h3>
               <div class="text-sm text-gray-500 mb-4">Edad, sexo, aseguradora y tipo de paciente (frecuencia).</div>
-              <div id="chart-demo" class="h-48 bg-gray-50 rounded flex items-center justify-center">[Gráficos demografía]</div>
+              <div id="chart-demo" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Gráficos demografía]</div>
+              <div class="grid grid-cols-2 gap-2">
+                <canvas id="chart-demo-gender" class="w-full h-32"></canvas>
+                <canvas id="chart-demo-insurance" class="w-full h-32"></canvas>
+              </div>
             </section>
 
             <!-- E. Indicadores administrativos -->
             <section class="bg-white p-4 rounded shadow-sm">
               <h3 class="font-semibold mb-2">E. Indicadores administrativos</h3>
               <div class="text-sm text-gray-500 mb-4">Tiempos de espera, tasa de no-show, cancelaciones.</div>
-              <div id="chart-admin" class="h-48 bg-gray-50 rounded flex items-center justify-center">[Indicadores admin]</div>
+              <div id="chart-admin" class="h-40 max-h-[320px] bg-gray-50 rounded flex items-center justify-center">[Indicadores admin]</div>
+              <canvas id="chart-admin-canvas" class="w-full h-40"></canvas>
             </section>
 
             <!-- F. Exportación / Reportes -->
@@ -144,6 +151,11 @@ async function loadStats() {
 }
 
 let volumeChart = null
+let productivityChart = null
+let usageChart = null
+let demoGenderChart = null
+let demoInsuranceChart = null
+let adminChart = null
 async function loadVolumeChart() {
   try {
     const params = Object.assign({}, filters.value)
@@ -208,13 +220,100 @@ async function loadVolumeChart() {
         datasets
       },
       options: {
+        responsive: true,
         maintainAspectRatio: false,
+        elements: { bar: { borderRadius: 4 } },
+        datasets: { bar: { maxBarThickness: 48 } },
         scales: {
           x: { stacked: false },
           y: { beginAtZero: true }
         }
       }
     })
+  } catch (e) {
+    // ignore
+  }
+}
+
+async function loadDashboardStats() {
+  try {
+    const res = await axios.get('/api/appointments/stats', { params: filters.value })
+    const payload = res.data || {}
+
+    // Productividad: usar payload.productividad.completed_by_doc
+    const completed = payload.productividad?.completed_by_doc || []
+    const prodLabels = completed.map(c => c.doctor_id)
+    const prodData = completed.map(c => c.completed)
+    const prodCtx = document.getElementById('chart-productivity-canvas')
+    if (prodCtx) {
+      if (productivityChart) {
+        productivityChart.data.labels = prodLabels
+        productivityChart.data.datasets[0].data = prodData
+        productivityChart.update()
+      } else {
+  productivityChart = new Chart(prodCtx, { type: 'bar', data: { labels: prodLabels, datasets: [{ label: 'Citas completadas', data: prodData, backgroundColor: 'rgba(16,185,129,0.8)'}] }, options: { responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:40}} } })
+      }
+    }
+
+    // Uso: by_hour
+    const byHour = payload.uso?.by_hour || []
+    const hours = byHour.map(h => h.hour)
+    const hoursData = byHour.map(h => h.total)
+    const usageCtx = document.getElementById('chart-usage-canvas')
+    if (usageCtx) {
+      if (usageChart) {
+        usageChart.data.labels = hours
+        usageChart.data.datasets[0].data = hoursData
+        usageChart.update()
+      } else {
+  usageChart = new Chart(usageCtx, { type: 'bar', data: { labels: hours, datasets: [{ label: 'Citas por hora', data: hoursData, backgroundColor: 'rgba(255,159,64,0.8)'}] }, options: { responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+      }
+    }
+
+    // Demografía: gender & insurance
+    const genders = payload.demografia?.by_gender || []
+    const gLabels = genders.map(g => g.gender || g[0])
+    const gData = genders.map(g => g.total)
+    const gCtx = document.getElementById('chart-demo-gender')
+    if (gCtx) {
+      if (demoGenderChart) {
+        demoGenderChart.data.labels = gLabels
+        demoGenderChart.data.datasets[0].data = gData
+        demoGenderChart.update()
+      } else {
+  demoGenderChart = new Chart(gCtx, { type: 'pie', data: { labels: gLabels, datasets:[{ data: gData, backgroundColor: ['#60A5FA','#FB7185','#FBBF24'] }] }, options: { responsive:true, maintainAspectRatio:false } })
+      }
+    }
+
+    const ins = payload.demografia?.by_insurance || []
+    const insLabels = ins.slice(0,10).map(i => i.insurance_provider || i[0])
+    const insData = ins.slice(0,10).map(i => i.total)
+    const insCtx = document.getElementById('chart-demo-insurance')
+    if (insCtx) {
+      if (demoInsuranceChart) {
+        demoInsuranceChart.data.labels = insLabels
+        demoInsuranceChart.data.datasets[0].data = insData
+        demoInsuranceChart.update()
+      } else {
+  demoInsuranceChart = new Chart(insCtx, { type: 'bar', data: { labels: insLabels, datasets:[{ label: 'Obras sociales', data: insData, backgroundColor: 'rgba(99,102,241,0.8)'}] }, options:{ responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+      }
+    }
+
+    // Admin: by_creator
+    const creators = payload.admin?.by_creator || []
+    const crLabels = creators.map(c => c.created_by)
+    const crData = creators.map(c => c.total)
+    const adminCtx = document.getElementById('chart-admin-canvas')
+    if (adminCtx) {
+      if (adminChart) {
+        adminChart.data.labels = crLabels
+        adminChart.data.datasets[0].data = crData
+        adminChart.update()
+      } else {
+  adminChart = new Chart(adminCtx, { type: 'bar', data: { labels: crLabels, datasets:[{ label: 'Citas creadas', data: crData, backgroundColor: 'rgba(107,114,128,0.8)'}] }, options:{ responsive:true, maintainAspectRatio:false, elements:{bar:{borderRadius:4}}, datasets:{bar:{maxBarThickness:36}} } })
+      }
+    }
+
   } catch (e) {
     // ignore
   }
@@ -229,19 +328,31 @@ onMounted(() => {
   axios.get('/api/specialties').then(r => { specialties.value = r.data || [] }).catch(()=>{})
   // Cargar y dibujar gráfico de volumen
   loadVolumeChart()
+  // Cargar otras métricas
+  loadDashboardStats()
 })
 
 onBeforeUnmount(() => {
-  if (volumeChart) {
-    volumeChart.destroy()
-    volumeChart = null
-  }
+  const charts = [volumeChart, productivityChart, usageChart, demoGenderChart, demoInsuranceChart, adminChart]
+  charts.forEach(c => {
+    if (c) {
+      try { c.destroy() } catch(e){}
+    }
+  })
+  volumeChart = null
+  productivityChart = null
+  usageChart = null
+  demoGenderChart = null
+  demoInsuranceChart = null
+  adminChart = null
 })
 
 function applyFilters() {
   loadStats()
   // recargar también el gráfico de volumen
   loadVolumeChart()
+  // recargar métricas
+  loadDashboardStats()
 }
 
 function exportCsv() {

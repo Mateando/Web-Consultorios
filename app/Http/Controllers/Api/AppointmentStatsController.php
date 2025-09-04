@@ -177,6 +177,7 @@ class AppointmentStatsController extends Controller
         ]);
     }
 
+
     /**
      * Volumen de citas: endpoint especializado que devuelve series agrupadas
      * params: start, end, group=day|week|month, by=doctor|specialty|reason
