@@ -29,12 +29,16 @@ class Appointment extends Model
         'created_by',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'appointment_date' => 'datetime',
-        ];
-    }
+    /**
+     * Column casting
+     * @var array
+     */
+    protected $casts = [
+        'appointment_date' => 'datetime',
+        'attended_at' => 'datetime',
+        'canceled_at' => 'datetime',
+        'consultation_fee' => 'decimal:2',
+    ];
 
     protected static function boot()
     {

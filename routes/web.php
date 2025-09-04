@@ -53,12 +53,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Ruta para obtener doctores por especialidad
     Route::get('/api/doctors-by-specialty', [AppointmentController::class, 'getDoctorsBySpecialty'])->name('doctors.by-specialty');
+    // Lista ligera de doctores (id, name) usada en dashboards
+    Route::get('/api/doctors/list', [AppointmentController::class, 'apiDoctorsList'])->name('api.doctors.list');
     
     // Ruta para obtener slots disponibles de un doctor
     Route::get('/api/appointments/available-slots', [AppointmentController::class, 'getAvailableTimeSlots'])->name('appointments.available-slots');
     
     // Ruta para obtener días disponibles por especialidad
     Route::get('/api/specialty-available-days', [AppointmentController::class, 'getSpecialtyAvailableDays'])->name('specialty.available-days');
+    // Lista ligera de especialidades
+    Route::get('/api/specialties', [AppointmentController::class, 'apiSpecialtiesList'])->name('api.specialties.list');
     
     // ...existing code...
     
@@ -196,6 +200,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Endpoint API para estadísticas de citas (dashboard)
     Route::get('/api/appointments/stats', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'index'])
         ->name('api.appointments.stats');
+    Route::get('/api/appointments/stats/volume', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'volume'])
+        ->name('api.appointments.stats.volume');
+    Route::get('/api/appointments/stats/export', [\App\Http\Controllers\Api\AppointmentStatsController::class, 'exportCsv'])
+        ->name('api.appointments.stats.export');
     
         // Endpoint para auditar envíos de WhatsApp (solo roles autorizados)
         Route::post('/api/whatsapp-audits', [\App\Http\Controllers\WhatsappAuditController::class, 'store'])

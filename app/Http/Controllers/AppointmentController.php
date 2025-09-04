@@ -918,6 +918,25 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Lista ligera de doctores para selects (id, name)
+     */
+    public function apiDoctorsList()
+    {
+        $doctors = Doctor::with('user')->whereHas('user', function($q){ $q->where('is_active', true); })->get();
+        $list = $doctors->map(fn($d) => ['id' => $d->id, 'name' => $d->user->name]);
+        return response()->json($list);
+    }
+
+    /**
+     * Lista ligera de especialidades
+     */
+    public function apiSpecialtiesList()
+    {
+        $specs = Specialty::select('id','name')->where('is_active', true)->get();
+        return response()->json($specs);
+    }
+
+    /**
      * Obtener slots de tiempo disponibles para un doctor en una fecha específica
      */
     public function getAvailableTimeSlots(Request $request)
