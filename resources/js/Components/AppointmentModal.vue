@@ -5,9 +5,9 @@
 
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form @submit.prevent="submitForm">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="inline-block align-bottom bg-white rounded-lg overflow-hidden text-left shadow-xl transform transition-all sm:my-8 sm:align-middle w-full max-w-2xl h-[72vh] sm:h-[72vh] max-h-[80vh]">
+                <form @submit.prevent="submitForm" class="h-full flex flex-col">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 overflow-y-auto flex-1 min-h-0">
                         <div class="sm:flex sm:items-start">
                             <div class="w-full mt-3 text-center sm:mt-0 sm:text-left">
                                                         <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
@@ -27,11 +27,23 @@
                                                                     class="block w-full pr-10 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                 />
                                                                 <div v-if="loadingPatients" class="absolute right-2 top-2 text-sm text-gray-500">Cargando...</div>
-                                                                <ul v-if="showPatientDropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md max-h-56 overflow-auto">
-                                                                    <li v-if="patientResults.length === 0" class="px-3 py-2 text-sm text-gray-500">Sin resultados</li>
-                                                                    <li v-for="p in patientResults" :key="p.id" @click="selectPatient(p)" class="px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer">
-                                                                        <div class="font-medium">{{ p.name || 'Paciente sin nombre' }}</div>
-                                                                        <div class="text-xs text-gray-500">{{ (p.document_type ? p.document_type.toUpperCase() + ' ' : '') + (p.document_number || '') }} {{ p.phone ? ' • ' + p.phone : '' }}</div>
+                                                                <ul
+                                                                    v-if="showPatientDropdown"
+                                                                    class="absolute left-0 right-0 z-[120] mt-1 w-full bg-white border border-gray-200 rounded-md max-h-64 overflow-y-auto shadow-lg ring-1 ring-black/5 text-left"
+                                                                    style="scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;"
+                                                                >
+                                                                    <li v-if="patientResults.length === 0" class="px-3 py-2 text-sm text-gray-500 select-none">Sin resultados</li>
+                                                                    <li
+                                                                        v-for="p in patientResults"
+                                                                        :key="p.id"
+                                                                        @click="selectPatient(p)"
+                                                                        class="px-3 py-2 text-sm cursor-pointer transition-colors hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
+                                                                    >
+                                                                        <div class="font-medium text-gray-800 truncate">{{ p.name || 'Paciente sin nombre' }}</div>
+                                                                        <div class="text-xs text-gray-500 flex flex-wrap gap-x-1">
+                                                                            <span>{{ (p.document_type ? p.document_type.toUpperCase() + ' ' : '') + (p.document_number || '') }}</span>
+                                                                            <span v-if="p.phone" class="hidden sm:inline">• {{ p.phone }}</span>
+                                                                        </div>
                                                                     </li>
                                                                 </ul>
                                                             </div>
@@ -39,32 +51,94 @@
                                                             <div v-if="errors.patient_id" class="mt-1 text-sm text-red-600">{{ errors.patient_id }}</div>
                                                         </div>
 
-                                                        <!-- Step 2: Especialidad / Doctor -->
+                                                        <!-- Step 2: Especialidad / Doctor con buscadores -->
                                                         <div v-show="step === 2" class="mb-4">
-                                                            <label for="specialty_id" class="block text-sm font-medium text-gray-700">Especialidad</label>
-                                                            <select id="specialty_id" v-model="form.specialty_id" @change="onSpecialtyChange" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                                                <option value="">Seleccionar especialidad</option>
-                                                                <option v-for="specialty in specialties" :key="specialty.id" :value="specialty.id">{{ specialty.name }}</option>
-                                                            </select>
+                                                            <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+                                                            <div class="mt-1 relative" ref="specialtyBox" @keydown.down.prevent="focusNextSpecialty()" @keydown.up.prevent="focusPrevSpecialty()" @keydown.enter.prevent="selectFocusedSpecialty()">
+                                                                <div class="flex items-center gap-2">
+                                                                    <div class="relative flex-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            v-model="specialtyQuery"
+                                                                            @focus="openSpecialtyDropdown()"
+                                                                            placeholder="Buscar / seleccionar..."
+                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm pr-8"
+                                                                        />
+                                                                        <button type="button" @click="toggleSpecialtyDropdown" class="absolute inset-y-0 right-0 px-2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <input type="hidden" id="specialty_id" v-model="form.specialty_id" />
+                                                                <ul
+                                                                    v-if="showSpecialtyDropdown"
+                                                                    class="absolute z-[120] mt-1 w-full bg-white border border-gray-200 rounded-md max-h-60 overflow-auto shadow-lg ring-1 ring-black/5 text-left"
+                                                                    @mousedown.stop
+                                                                >
+                                                                    <li v-if="filteredSpecialties.length===0" class="px-3 py-2 text-sm text-gray-500 select-none">Sin resultados</li>
+                                                                    <li
+                                                                        v-for="(specialty,idx) in filteredSpecialties"
+                                                                        :key="specialty.id"
+                                                                        :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedSpecialtyIndex ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50']"
+                                                                        @mouseenter="focusedSpecialtyIndex=idx"
+                                                                        @mouseleave="focusedSpecialtyIndex=-1"
+                                                                        @click="pickSpecialty(specialty)"
+                                                                    >
+                                                                        <span class="truncate">{{ specialty.name }}</span>
+                                                                        <svg v-if="String(form.specialty_id)===String(specialty.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
                                                             <div v-if="errors.specialty_id" class="mt-1 text-sm text-red-600">{{ errors.specialty_id }}</div>
 
                                                             <div class="mt-4">
-                                                                <label for="doctor_id" class="block text-sm font-medium text-gray-700">Doctor</label>
-                                                                <select id="doctor_id" v-model="form.doctor_id" @change="onDoctorChange" :disabled="!form.specialty_id || filteredDoctors.length === 0" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                                                    <option value="">{{ !form.specialty_id ? 'Seleccione primero una especialidad' : 'Seleccionar doctor' }}</option>
-                                                                    <option v-for="doctor in filteredDoctors" :key="doctor.id" :value="doctor.id">{{ doctor.name }} - {{ doctor.license_number }}</option>
-                                                                </select>
+                                                                <label class="block text-sm font-medium text-gray-700">Doctor</label>
+                                                                <div class="mt-1 relative" ref="doctorBox" @keydown.down.prevent="focusNextDoctor()" @keydown.up.prevent="focusPrevDoctor()" @keydown.enter.prevent="selectFocusedDoctor()">
+                                                                    <div class="relative">
+                                                                        <input
+                                                                            type="text"
+                                                                            v-model="doctorQuery"
+                                                                            @focus="openDoctorDropdown()"
+                                                                            :placeholder="!form.specialty_id ? 'Seleccione primero una especialidad' : 'Buscar / seleccionar...'"
+                                                                            :disabled="!form.specialty_id"
+                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm pr-8 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                        />
+                                                                        <button type="button" @click="toggleDoctorDropdown" :disabled="!form.specialty_id" class="absolute inset-y-0 right-0 px-2 text-gray-500 hover:text-gray-700 focus:outline-none disabled:opacity-40">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                                                        </button>
+                                                                    </div>
+                                                                    <input type="hidden" id="doctor_id" v-model="form.doctor_id" />
+                                                                    <ul
+                                                                        v-if="showDoctorDropdown && form.specialty_id"
+                                                                        class="absolute z-[120] mt-1 w-full bg-white border border-gray-200 rounded-md max-h-60 overflow-auto shadow-lg ring-1 ring-black/5 text-left"
+                                                                        @mousedown.stop
+                                                                    >
+                                                                        <li v-if="filteredDoctorsComputed.length===0" class="px-3 py-2 text-sm text-gray-500 select-none">Sin resultados</li>
+                                                                        <li
+                                                                            v-for="(doctor,idx) in filteredDoctorsComputed"
+                                                                            :key="doctor.id"
+                                                                            :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedDoctorIndex ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50']"
+                                                                            @mouseenter="focusedDoctorIndex=idx"
+                                                                            @mouseleave="focusedDoctorIndex=-1"
+                                                                            @click="pickDoctor(doctor)"
+                                                                        >
+                                                                            <span class="truncate">{{ doctor.name }} <span v-if="doctor.license_number" class="text-xs text-gray-500">- {{ doctor.license_number }}</span></span>
+                                                                            <svg v-if="String(form.doctor_id)===String(doctor.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
                                                                 <div v-if="errors.doctor_id" class="mt-1 text-sm text-red-600">{{ errors.doctor_id }}</div>
-                                                                <div v-if="form.specialty_id && filteredDoctors.length === 0" class="mt-1 text-sm text-yellow-600">No hay doctores disponibles para esta especialidad</div>
+                                                                <div v-if="form.specialty_id && filteredDoctorsComputed.length === 0" class="mt-1 text-sm text-yellow-600">No hay doctores disponibles para esta especialidad</div>
                                                             </div>
                                                         </div>
 
-                                                        <!-- Step 3: Tipo de estudio (si aplica) -->
+                                                        <!-- Step 3: Tipo de estudio (si aplica) con buscador -->
                                                         <div v-show="step === 3 && hasStudyTypes" class="mb-4">
                                                             <label for="study_type_id" class="block text-sm font-medium text-gray-700">Tipo de estudio</label>
-                                                            <select id="study_type_id" v-model="form.study_type_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                            <input type="text" v-model="studyQuery" placeholder="Buscar estudio..." class="mt-1 mb-2 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                                                            <select id="study_type_id" v-model="form.study_type_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                                                                 <option value="">Seleccionar tipo de estudio</option>
-                                                                <option v-for="studyType in doctorStudyTypes" :key="studyType.id" :value="studyType.id">{{ studyType.name }}</option>
+                                                                <option v-for="studyType in filteredDoctorStudyTypes" :key="studyType.id" :value="studyType.id">{{ studyType.name }}</option>
                                                             </select>
                                                             <div v-if="errors.study_type_id" class="mt-1 text-sm text-red-600">{{ errors.study_type_id }}</div>
                                                         </div>
@@ -89,10 +163,10 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Step 5: Detalles -->
+                                                        <!-- Step 5: Detalles (estado deshabilitado en creación) -->
                                                         <div v-show="step === (hasStudyTypes ? 5 : 4)" class="mb-4">
                                                             <label for="status" class="block text-sm font-medium text-gray-700">Estado</label>
-                                                            <select id="status" v-model="form.status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                            <select id="status" v-model="form.status" :disabled="!isEditing" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-gray-100 cursor-not-allowed">
                                                                 <option value="programada">Programada</option>
                                                                 <option value="confirmada">Confirmada</option>
                                                                 <option value="en_curso">En Curso</option>
@@ -122,8 +196,8 @@
                                                                 </div>
                                                         </div>
 
-                                                        <!-- Step 6: Resumen completo -->
-                                                        <div v-show="step === 6" class="mb-4">
+                                                        <!-- Step 6: Resumen completo + opción de imprimir -->
+                                                        <div v-show="step === maxStep" class="mb-4">
                                                             <div class="mt-0 border-b pb-2 mb-3">
                                                                 <h4 class="text-lg font-medium text-gray-900">Resumen de la cita</h4>
                                                             </div>
@@ -133,6 +207,21 @@
                                                             <p class="text-sm text-gray-700">Fecha y hora: <strong>{{ (form.appointment_date || '') + ' ' + (form.appointment_time || '') }}</strong></p>
                                                             <p class="text-sm text-gray-700">Duración: <strong>{{ referenceDurationText }}</strong></p>
                                                             <p class="text-sm text-gray-700">Estado: <strong>{{ form.status }}</strong></p>
+                                                            <p class="text-sm text-gray-700" v-if="form.study_type_id">Estudio: <strong>{{ (doctorStudyTypes.find(s=>String(s.id)===String(form.study_type_id))||{}).name }}</strong></p>
+                                                            <!-- Indicador de impresión -->
+                                                            <div class="mt-3 flex items-center text-sm" :class="printAfter ? 'text-green-600' : 'text-gray-500'">
+                                                                <span class="inline-flex items-center gap-1 font-medium">
+                                                                    <span v-if="printAfter" class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-100 text-green-700">
+                                                                        <!-- Check icon -->
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 00-1.408-1.42l-6.93 6.866-2.66-2.63a1 1 0 00-1.404 1.424l3.364 3.326a1 1 0 001.404 0l7.634-7.566z" clip-rule="evenodd" /></svg>
+                                                                    </span>
+                                                                    <span v-else class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-200 text-gray-600">
+                                                                        <!-- X icon -->
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                                                    </span>
+                                                                    <span>{{ printAfter ? 'Se imprimirá al guardar' : 'No se imprimirá automáticamente' }}</span>
+                                                                </span>
+                                                            </div>
                                                             <div v-if="reasonName" class="mt-3">
                                                                 <p class="text-sm font-medium text-gray-800">Motivo</p>
                                                                 <p class="text-sm text-gray-700">{{ reasonName }}</p>
@@ -145,11 +234,15 @@
                                                                 <p class="text-sm font-medium text-gray-800">Estudio</p>
                                                                 <p class="text-sm text-gray-700">{{ (doctorStudyTypes.find(s=>String(s.id)===String(form.study_type_id))||{}).name }}</p>
                                                             </div>
+                                                            <div class="mt-4 flex items-center gap-2">
+                                                                <input id="print_after" type="checkbox" v-model="printAfter" class="h-4 w-4 border-gray-300 rounded" />
+                                                                <label for="print_after" class="text-sm text-gray-700 select-none">Imprimir al guardar</label>
+                                                            </div>
                                                         </div>
                             </div>
                         </div>
                     </div>
-                                            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse items-center">
+                                            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse items-center border-t">
                                                 <div class="sm:ml-3 sm:w-auto w-full">
                                                     <PrimaryButton
                                                         v-if="step < maxStep"
@@ -189,7 +282,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import Swal from 'sweetalert2'
 import { router } from '@inertiajs/vue3'
 import axios from 'axios'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
@@ -214,11 +308,22 @@ const emit = defineEmits(['close', 'saved'])
 
 const processing = ref(false)
 const errors = ref({})
-const filteredDoctors = ref([])
+const filteredDoctors = ref([]) // base recibidos por especialidad
+const doctorQuery = ref('')
+const specialtyQuery = ref('')
+const studyQuery = ref('')
 const availableSlots = ref([])
 const loadingSlots = ref(false)
 const availableDays = ref([])
 const loadingDays = ref(false)
+// Dropdown especialidad mejorado (combobox)
+const showSpecialtyDropdown = ref(false)
+const focusedSpecialtyIndex = ref(-1)
+const specialtyBox = ref(null)
+// Combobox doctor
+const showDoctorDropdown = ref(false)
+const focusedDoctorIndex = ref(-1)
+const doctorBox = ref(null)
 // Appointment reasons
 const reasons = ref([])
 // Pacientes búsqueda dinámica
@@ -230,7 +335,8 @@ let patientDebounceTimer = null
 
 // Wizard state
 const step = ref(1)
-const maxStep = ref(5)
+// Si hay tipos de estudio se agrega un paso extra (resumen pasa a ser 6)
+const maxStep = computed(() => hasStudyTypes.value ? 6 : 5)
 
 const patientName = computed(() => {
     const p = props.patients?.find(pt => pt.id === form.value.patient_id)
@@ -260,6 +366,110 @@ const doctorStudyTypes = computed(() => {
     const d = (props.doctors || []).find(x => String(x.id) === String(form.value.doctor_id))
     if (!d) return props.studyTypes || []
     return d.study_types || props.studyTypes || []
+})
+
+// --- Combobox especialidad ---
+const openSpecialtyDropdown = () => {
+    if (!showSpecialtyDropdown.value) {
+        showSpecialtyDropdown.value = true
+        // Si no hay query, igualmente mostrar todo y enfocar primer item
+        nextTick(() => {
+            if (filteredSpecialties.value.length > 0) focusedSpecialtyIndex.value = 0
+        })
+    }
+}
+const closeSpecialtyDropdown = () => {
+    showSpecialtyDropdown.value = false
+    focusedSpecialtyIndex.value = -1
+}
+const toggleSpecialtyDropdown = () => {
+    showSpecialtyDropdown.value ? closeSpecialtyDropdown() : openSpecialtyDropdown()
+}
+watch(() => specialtyQuery.value, () => {
+    if (!showSpecialtyDropdown.value) openSpecialtyDropdown()
+    // Reiniciar índice sólo si hay resultados
+    if (filteredSpecialties.value.length > 0) {
+        focusedSpecialtyIndex.value = 0
+    } else {
+        focusedSpecialtyIndex.value = -1
+    }
+})
+const focusNextSpecialty = () => {
+    if (!showSpecialtyDropdown.value) { openSpecialtyDropdown(); return }
+    if (filteredSpecialties.value.length === 0) return
+    focusedSpecialtyIndex.value = (focusedSpecialtyIndex.value + 1) % filteredSpecialties.value.length
+}
+const focusPrevSpecialty = () => {
+    if (!showSpecialtyDropdown.value) { openSpecialtyDropdown(); return }
+    if (filteredSpecialties.value.length === 0) return
+    focusedSpecialtyIndex.value = (focusedSpecialtyIndex.value - 1 + filteredSpecialties.value.length) % filteredSpecialties.value.length
+}
+const selectFocusedSpecialty = () => {
+    if (focusedSpecialtyIndex.value < 0) return
+    const s = filteredSpecialties.value[focusedSpecialtyIndex.value]
+    if (s) pickSpecialty(s)
+}
+const pickSpecialty = (specialty) => {
+    form.value.specialty_id = specialty.id
+    specialtyQuery.value = specialty.name
+    closeSpecialtyDropdown()
+    onSpecialtyChange()
+}
+
+// --- Combobox Doctor ---
+const openDoctorDropdown = () => {
+    if (!form.value.specialty_id) return
+    if (!showDoctorDropdown.value) {
+        showDoctorDropdown.value = true
+        nextTick(()=>{ if (filteredDoctorsComputed.value.length>0) focusedDoctorIndex.value=0 })
+    }
+}
+const closeDoctorDropdown = () => { showDoctorDropdown.value = false; focusedDoctorIndex.value=-1 }
+const toggleDoctorDropdown = () => { showDoctorDropdown.value ? closeDoctorDropdown() : openDoctorDropdown() }
+watch(()=>doctorQuery.value, ()=>{ if(!showDoctorDropdown.value) openDoctorDropdown(); if(filteredDoctorsComputed.value.length>0) focusedDoctorIndex.value=0; else focusedDoctorIndex.value=-1 })
+const focusNextDoctor = () => { if(!showDoctorDropdown.value) { openDoctorDropdown(); return } if(filteredDoctorsComputed.value.length===0) return; focusedDoctorIndex.value=(focusedDoctorIndex.value+1)%filteredDoctorsComputed.value.length }
+const focusPrevDoctor = () => { if(!showDoctorDropdown.value) { openDoctorDropdown(); return } if(filteredDoctorsComputed.value.length===0) return; focusedDoctorIndex.value=(focusedDoctorIndex.value-1+filteredDoctorsComputed.value.length)%filteredDoctorsComputed.value.length }
+const selectFocusedDoctor = () => { if(focusedDoctorIndex.value<0) return; const d=filteredDoctorsComputed.value[focusedDoctorIndex.value]; if(d) pickDoctor(d) }
+const pickDoctor = (doctor) => { form.value.doctor_id = doctor.id; doctorQuery.value = doctor.name; closeDoctorDropdown(); onDoctorChange() }
+
+// Cerrar al hacer clic fuera manualmente
+const handleClickOutside = (e) => {
+    if (!showSpecialtyDropdown.value) return
+    const el = specialtyBox.value
+    if (el && !el.contains(e.target)) {
+        closeSpecialtyDropdown()
+    }
+}
+const handleClickOutsideDoctor = (e) => {
+    if (!showDoctorDropdown.value) return
+    const el = doctorBox.value
+    if (el && !el.contains(e.target)) closeDoctorDropdown()
+}
+onMounted(() => {
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handleClickOutsideDoctor)
+})
+onUnmounted(() => {
+    document.removeEventListener('mousedown', handleClickOutside)
+    document.removeEventListener('mousedown', handleClickOutsideDoctor)
+})
+
+const filteredSpecialties = computed(() => {
+    if (!specialtyQuery.value) return props.specialties || []
+    const q = specialtyQuery.value.toLowerCase()
+    return (props.specialties || []).filter(s => s.name.toLowerCase().includes(q))
+})
+
+const filteredDoctorsComputed = computed(() => {
+    if (!doctorQuery.value) return filteredDoctors.value
+    const q = doctorQuery.value.toLowerCase()
+    return filteredDoctors.value.filter(d => (d.name || '').toLowerCase().includes(q) || (d.license_number || '').toLowerCase().includes(q))
+})
+
+const filteredDoctorStudyTypes = computed(() => {
+    if (!studyQuery.value) return doctorStudyTypes.value
+    const q = studyQuery.value.toLowerCase()
+    return doctorStudyTypes.value.filter(st => st.name.toLowerCase().includes(q))
 })
 
 const isNextDisabled = computed(() => {
@@ -692,6 +902,8 @@ const populateForm = async () => {
     }
 }
 
+const printAfter = ref(false)
+
 const submitForm = async () => {
     processing.value = true
     errors.value = {}
@@ -727,6 +939,9 @@ const submitForm = async () => {
     // Remover campos que no necesitamos enviar
     delete data.appointment_time
 
+    // Forzar estado programada en creación
+    if (!isEditing.value) data.status = 'programada'
+
     const url = isEditing.value 
         ? `/appointments/${props.appointment.id}`
         : '/appointments'
@@ -739,20 +954,27 @@ const submitForm = async () => {
             // mark as saved so printing is allowed
             savedOnce.value = true
             emit('saved')
-
-            // Try to open print dialog using the current data, then immediately
-            // reset the form so the modal is ready to create another appointment.
-            // We keep a tiny timeout to let Inertia/client updates settle.
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: isEditing.value ? 'Cita actualizada' : 'Cita creada',
+                timer: 2800,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'swal-compact-toast'
+                }
+            })
             setTimeout(() => {
-                try { printAppointment() } catch (e) { /* swallow */ }
-
-                // After scheduling the print, reset the modal for a fresh entry
-                // and disable printing until the new appointment is saved.
+                if (printAfter.value) {
+                    try { printAppointment() } catch (e) {}
+                }
                 savedOnce.value = false
                 resetForm()
                 step.value = 1
                 errors.value = {}
-            }, 200)
+                printAfter.value = false
+            }, 250)
         },
         onError: (errorResponse) => {
             console.log('Error al guardar la cita:', errorResponse)

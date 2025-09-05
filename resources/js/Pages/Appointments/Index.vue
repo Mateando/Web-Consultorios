@@ -330,38 +330,34 @@
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
-                        <AppointmentModal
+                        <AppointmentModalDoctor
                             :show="showCreateModal && creationMode==='doctor' && preDoctorId"
-                            :appointment="null"
-                            :selected-date="selectedDate"
-                            :doctors="filteredDoctorsByDoctorMode"
                             :patients="patients"
+                            :doctors="doctors"
                             :specialties="specialties"
+                            :selected-date="selectedDate"
                             :initial-doctor-id="preDoctorId"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
-                        <AppointmentModal
+                        <AppointmentModalSpecialty
                             :show="showCreateModal && creationMode==='specialty' && preSpecialtyId"
-                            :appointment="null"
-                            :selected-date="selectedDate"
-                            :doctors="doctors"
                             :patients="patients"
+                            :doctors="doctors"
                             :specialties="specialties"
+                            :selected-date="selectedDate"
                             :initial-specialty-id="preSpecialtyId"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
-                        <AppointmentModal
+                        <AppointmentModalStudy
                             :show="showCreateModal && creationMode==='study' && preStudyTypeId"
-                            :appointment="null"
-                            :selected-date="selectedDate"
-                            :doctors="filteredDoctorsByStudy"
                             :patients="patients"
+                            :doctors="doctors"
                             :specialties="specialties"
                             :study-types="study_types"
+                            :selected-date="selectedDate"
                             :initial-study-type-id="preStudyTypeId"
-                            :initial-doctor-id="filteredDoctorsByStudy.length===1 ? filteredDoctorsByStudy[0].id : null"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
@@ -448,6 +444,9 @@ import { Head } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import AppointmentCalendar from '@/Components/AppointmentCalendar.vue'
 import AppointmentModal from '@/Components/AppointmentModal.vue'
+import AppointmentModalDoctor from '@/Components/AppointmentModalDoctor.vue'
+import AppointmentModalSpecialty from '@/Components/AppointmentModalSpecialty.vue'
+import AppointmentModalStudy from '@/Components/AppointmentModalStudy.vue'
 import AppointmentDetailModal from '@/Components/AppointmentDetailModal.vue'
 import AppointmentEditModal from '@/Components/AppointmentEditModal.vue'
 import axios from 'axios'
@@ -471,41 +470,71 @@ const creationMode = ref('default') // default | doctor | specialty | study
 const preDoctorId = ref(null)
 const preSpecialtyId = ref(null)
 const preStudyTypeId = ref(null)
-
-function openMode(mode){
-    creationMode.value = mode
-    if(mode==='default') {
-        preDoctorId.value = null; preSpecialtyId.value = filters.value.specialty_id || null; preStudyTypeId.value = null; showCreateModal.value = true; return;
-    }
-    if(mode==='doctor') { showSelectDoctorModal.value = true; }
-    if(mode==='specialty') { showSelectSpecialtyModal.value = true; }
-    if(mode==='study') { showSelectStudyModal.value = true; }
-}
-
-// Modales simples de selección inicial
+// Flags para los modales de selección rápida según modo
 const showSelectDoctorModal = ref(false)
 const showSelectSpecialtyModal = ref(false)
 const showSelectStudyModal = ref(false)
-
-function chooseDoctor(id){ preDoctorId.value = id; showSelectDoctorModal.value=false; showCreateModal.value=true }
-function chooseSpecialty(id){ preSpecialtyId.value = id; showSelectSpecialtyModal.value=false; showCreateModal.value=true }
-function chooseStudy(id){ preStudyTypeId.value = id; showSelectStudyModal.value=false; showCreateModal.value=true }
-
-// Filtrado de doctores por estudio
-const filteredDoctorsByStudy = computed(()=>{
-    if(!preStudyTypeId.value) return props.doctors || []
-    return (props.doctors||[]).filter(d => (d.study_types||d.studyTypes||[]).some(st => String(st.id)===String(preStudyTypeId.value)))
-})
-
-// Para doctor mode ya tenemos lista completa, pero permitimos reutilizar
-const filteredDoctorsByDoctorMode = computed(()=> props.doctors || [])
-
-
-const currentView = ref('calendar')
+// Flags principales de modales de creación / edición / detalle
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
-const selectedAppointment = ref(null)
 const showDetailModal = ref(false)
+// Cita seleccionada (para editar / ver detalle)
+const selectedAppointment = ref(null)
+
+// Abre el flujo de creación según modo solicitado
+const openMode = (mode) => {
+    if (!props.user_permissions?.can_create_appointments) return
+    // Reset previo
+    creationMode.value = mode || 'default'
+    preDoctorId.value = null
+    preSpecialtyId.value = null
+    preStudyTypeId.value = null
+    selectedDate.value = null
+
+    // Lógica por modo
+    switch (mode) {
+        case 'doctor':
+            showSelectDoctorModal.value = true
+            break
+        case 'specialty':
+            showSelectSpecialtyModal.value = true
+            break
+        case 'study':
+            showSelectStudyModal.value = true
+            break
+        case 'default':
+        default:
+            // Si ya hay un filtro de especialidad activo podemos usarlo como preselección
+            if (filters.value.specialty_id) {
+                preSpecialtyId.value = filters.value.specialty_id
+            }
+            showCreateModal.value = true
+            break
+    }
+}
+
+// Selección de doctor para modo 'doctor'
+const chooseDoctor = (id) => {
+    preDoctorId.value = id
+    showSelectDoctorModal.value = false
+    showCreateModal.value = true
+}
+
+// Selección de especialidad para modo 'specialty'
+const chooseSpecialty = (id) => {
+    preSpecialtyId.value = id
+    showSelectSpecialtyModal.value = false
+    showCreateModal.value = true
+}
+
+// Selección de estudio para modo 'study'
+const chooseStudy = (id) => {
+    preStudyTypeId.value = id
+    showSelectStudyModal.value = false
+    showCreateModal.value = true
+}
+// Vista actual (calendar | list)
+const currentView = ref('calendar')
 const selectedDate = ref(null)
 const availableDays = ref([])
 const loadingAvailableDays = ref(false)
