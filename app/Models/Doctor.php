@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class Doctor extends Model
 {
@@ -53,6 +54,11 @@ class Doctor extends Model
         return $this->hasMany(Appointment::class);
     }
 
+    public function studyTypes()
+    {
+        return $this->belongsToMany(\App\Models\StudyType::class, 'doctor_study_type');
+    }
+
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class);
@@ -66,6 +72,16 @@ class Doctor extends Model
     public function insuranceProviders()
     {
         return $this->belongsToMany(\App\Models\InsuranceProvider::class, 'doctor_insurance_provider');
+    }
+
+    // Estudios (tipos) que puede realizar el doctor filtrados opcionalmente por specialty
+    public function studyTypesForSpecialty($specialtyId = null)
+    {
+        $query = $this->studyTypes();
+    if ($specialtyId && Schema::hasColumn('study_types', 'specialty_id')) {
+            $query->where('specialty_id', $specialtyId);
+        }
+        return $query;
     }
 
     // Obtener horarios para una especialidad específica

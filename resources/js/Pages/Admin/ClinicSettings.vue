@@ -15,6 +15,9 @@
         <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
           Error al guardar. Revisa los campos marcados.
         </div>
+        <div v-if="errors.general" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
+          {{ Array.isArray(errors.general) ? errors.general[0] : errors.general }}
+        </div>
 
         <form @submit.prevent="submit" class="mt-6 space-y-6 max-w-2xl">
         <div>
@@ -146,7 +149,16 @@ const submit = async () => {
   if (removeLogoFlag.value) payload.append('remove_logo', '1');
 
   // Let the browser set the Content-Type (including boundary) for multipart/form-data
-  const { data } = await axios.post(url, payload)
+  // Añadir token CSRF explícitamente dentro del FormData por si el header no llega
+  const csrfMeta = document.head.querySelector('meta[name="csrf-token"]')
+  if (csrfMeta && !payload.has('_token')) {
+    payload.append('_token', csrfMeta.content)
+  }
+
+  const { data } = await axios.post(url, payload, {
+    headers: { 'Accept': 'application/json' },
+    withCredentials: true,
+  })
     successMessage.value = 'Datos guardados correctamente'
     if (data?.clinic) {
       // update local reactive clinic so template reflects changes immediately
@@ -184,10 +196,16 @@ const submit = async () => {
       }
     }
   } catch (err) {
-    if (err.response && err.response.status === 422) {
-      errors.value = err.response.data.errors || err.response.data || {}
+    if (err.response) {
+      if (err.response.status === 422) {
+        errors.value = err.response.data.errors || err.response.data || {}
+      } else if (err.response.status === 419) {
+        errors.value = { general: ['Sesión expirada o token CSRF inválido. Recarga la página e inténtalo de nuevo.'] }
+      } else {
+        errors.value = { general: [`Error ${err.response.status}. Intenta nuevamente.`] }
+      }
     } else {
-      errors.value = { general: ['Error al guardar. Intenta nuevamente.'] }
+      errors.value = { general: ['Error de red. Verifica tu conexión.'] }
     }
   } finally {
     processing.value = false

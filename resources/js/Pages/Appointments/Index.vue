@@ -14,14 +14,18 @@
                             </h3>
                             <div class="flex space-x-4">
                                 <!-- Botón para nueva cita (solo para admin, doctores y recepcionistas) -->
-                                <PrimaryButton
-                                    v-if="user_permissions?.can_create_appointments"
-                                    @click="createNewAppointment"
-                                    :title="newAppointmentTooltip"
-                                    :disabled="!canCreateNewAppointment || loadingAvailableDays"
-                                >
-                                    {{ loadingAvailableDays ? 'Verificando...' : 'Nueva Cita' }}
-                                </PrimaryButton>
+                                                                <div v-if="user_permissions?.can_create_appointments" class="flex gap-2">
+                                                                    <PrimaryButton
+                                                                        @click="openMode('default')"
+                                                                        :title="newAppointmentTooltip"
+                                                                        :disabled="!canCreateNewAppointment || loadingAvailableDays"
+                                                                    >
+                                                                        {{ loadingAvailableDays ? 'Verificando...' : 'Nueva Cita' }}
+                                                                    </PrimaryButton>
+                                                                    <SecondaryButton @click="openMode('doctor')" :disabled="loadingAvailableDays" class="px-3 py-1 text-sm">Por Médico</SecondaryButton>
+                                                                    <SecondaryButton @click="openMode('specialty')" :disabled="loadingAvailableDays" class="px-3 py-1 text-sm">Por Especialidad</SecondaryButton>
+                                                                    <SecondaryButton @click="openMode('study')" :disabled="loadingAvailableDays" class="px-3 py-1 text-sm">Por Estudio</SecondaryButton>
+                                                                </div>
                                 
                                 <!-- Toggle vista -->
                                 <div class="flex space-x-2">
@@ -37,7 +41,7 @@
                         </div>
                         
                         <!-- Filtros (ocultar filtro de doctor para pacientes) -->
-                        <div class="grid grid-cols-1 gap-4 mb-4" :class="user_permissions?.is_patient ? 'md:grid-cols-4' : 'md:grid-cols-5'">
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" :class="user_permissions?.is_patient ? 'md:grid-cols-4' : 'md:grid-cols-5'">
                             <div v-if="!user_permissions?.is_patient">
                                 <label class="block text-sm font-medium text-gray-700">Doctor</label>
                                 <select
@@ -109,6 +113,15 @@
                                     @change="applyFilters"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                                 >
+                            </div>
+
+                            <!-- Filtro de Estudio -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Estudio</label>
+                                <select v-model="filters.study_type_id" @change="applyFilters" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    <option value="">Todos</option>
+                                    <option v-for="st in study_types" :key="st.id" :value="st.id">{{ st.name }}</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -198,50 +211,56 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Fecha y Hora
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Paciente
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Doctor
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Especialidad
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Estudio
+                                        </th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Estado
                                         </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Acciones
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr v-for="appointment in appointments.data" :key="appointment.id">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                                             {{ formatDateTime(appointment.appointment_date) }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                                             {{ appointment.patient.user.name }}
                                             <br>
                                             <span class="text-xs text-gray-500">{{ appointment.patient.user.document_type?.toUpperCase() }} {{ appointment.patient.user.document_number }}</span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                                             {{ appointment.doctor.user.name }}
                                             <br>
                                             <span class="text-xs text-gray-500">{{ appointment.doctor.user.document_type?.toUpperCase() }} {{ appointment.doctor.user.document_number }}</span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                                             {{ appointment.specialty?.name || 'General' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                            {{ appointment.study_type?.name || '-' }}
+                                        </td>
+                                        <td class="px-4 py-2 whitespace-nowrap">
                                             <span :style="getBadgeStyle(appointment.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                                                 {{ getStatusText(appointment.status) }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium">
                                             <!-- Botones para admin, doctores y recepcionistas -->
                                             <template v-if="user_permissions?.can_edit_appointments">
                                                 <SecondaryButton type="button" @click="editAppointment(appointment)" class="!px-2 !py-1 mr-3 text-indigo-600 hover:text-indigo-900 bg-white border-gray-200">Editar</SecondaryButton>
@@ -301,13 +320,48 @@
 
                 <!-- Modal para crear (nuevo) -->
                         <AppointmentModal
-                            :show="showCreateModal"
+                            :show="showCreateModal && creationMode==='default'"
                             :appointment="null"
                             :selected-date="selectedDate"
                             :doctors="doctors"
                             :patients="patients"
                             :specialties="specialties"
                             :initial-specialty-id="filters.specialty_id"
+                            @close="closeModal"
+                            @saved="appointmentSaved"
+                        />
+                        <AppointmentModal
+                            :show="showCreateModal && creationMode==='doctor' && preDoctorId"
+                            :appointment="null"
+                            :selected-date="selectedDate"
+                            :doctors="filteredDoctorsByDoctorMode"
+                            :patients="patients"
+                            :specialties="specialties"
+                            :initial-doctor-id="preDoctorId"
+                            @close="closeModal"
+                            @saved="appointmentSaved"
+                        />
+                        <AppointmentModal
+                            :show="showCreateModal && creationMode==='specialty' && preSpecialtyId"
+                            :appointment="null"
+                            :selected-date="selectedDate"
+                            :doctors="doctors"
+                            :patients="patients"
+                            :specialties="specialties"
+                            :initial-specialty-id="preSpecialtyId"
+                            @close="closeModal"
+                            @saved="appointmentSaved"
+                        />
+                        <AppointmentModal
+                            :show="showCreateModal && creationMode==='study' && preStudyTypeId"
+                            :appointment="null"
+                            :selected-date="selectedDate"
+                            :doctors="filteredDoctorsByStudy"
+                            :patients="patients"
+                            :specialties="specialties"
+                            :study-types="study_types"
+                            :initial-study-type-id="preStudyTypeId"
+                            :initial-doctor-id="filteredDoctorsByStudy.length===1 ? filteredDoctorsByStudy[0].id : null"
                             @close="closeModal"
                             @saved="appointmentSaved"
                         />
@@ -334,6 +388,54 @@
                             @delete="(appt) => { showDetailModal = false; deleteAppointment(appt) }"
                             @print="(appt) => { printSingle(appt) }"
                         />
+
+                        <!-- Modal selección por Médico -->
+<div v-if="showSelectDoctorModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded shadow p-5 w-full max-w-md">
+    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Médico</h3>
+    <div class="max-h-72 overflow-y-auto divide-y">
+      <button v-for="d in (doctors||[])" :key="d.id" type="button" @click="chooseDoctor(d.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
+        <span class="text-sm font-medium">{{ d.user?.name }}</span>
+        <span class="text-xs text-gray-500" v-if="(d.study_types||d.studyTypes||[]).length">Estudios: {{ (d.study_types||d.studyTypes).map(s=>s.name).join(', ') }}</span>
+      </button>
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <SecondaryButton type="button" @click="showSelectDoctorModal=false">Cancelar</SecondaryButton>
+    </div>
+  </div>
+</div>
+
+<!-- Modal selección por Especialidad -->
+<div v-if="showSelectSpecialtyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded shadow p-5 w-full max-w-md">
+    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Especialidad</h3>
+    <div class="max-h-72 overflow-y-auto divide-y">
+      <button v-for="s in (specialties||[])" :key="s.id" type="button" @click="chooseSpecialty(s.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
+        <span class="text-sm font-medium">{{ s.name }}</span>
+      </button>
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <SecondaryButton type="button" @click="showSelectSpecialtyModal=false">Cancelar</SecondaryButton>
+    </div>
+  </div>
+</div>
+
+<!-- Modal selección por Estudio -->
+<div v-if="showSelectStudyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded shadow p-5 w-full max-w-md">
+    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Estudio</h3>
+    <div class="max-h-72 overflow-y-auto divide-y">
+      <button v-for="st in (study_types||[])" :key="st.id" type="button" @click="chooseStudy(st.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
+        <span class="text-sm font-medium">{{ st.name }}</span>
+        <span class="text-xs text-gray-500" v-if="st.cost">Costo: {{ st.cost }}</span>
+      </button>
+      <div v-if="!study_types || study_types.length===0" class="text-xs text-gray-500 p-2">No hay estudios activos.</div>
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <SecondaryButton type="button" @click="showSelectStudyModal=false">Cancelar</SecondaryButton>
+    </div>
+  </div>
+</div>
             </div>
         </div>
     </AuthenticatedLayout>
@@ -360,9 +462,44 @@ const props = defineProps({
     patients: Array,
     specialties: Array,
     calendar_events: Array,
+    study_types: Array,
     filters: Object,
     user_permissions: Object,
 })
+// Modo de creación y preselecciones
+const creationMode = ref('default') // default | doctor | specialty | study
+const preDoctorId = ref(null)
+const preSpecialtyId = ref(null)
+const preStudyTypeId = ref(null)
+
+function openMode(mode){
+    creationMode.value = mode
+    if(mode==='default') {
+        preDoctorId.value = null; preSpecialtyId.value = filters.value.specialty_id || null; preStudyTypeId.value = null; showCreateModal.value = true; return;
+    }
+    if(mode==='doctor') { showSelectDoctorModal.value = true; }
+    if(mode==='specialty') { showSelectSpecialtyModal.value = true; }
+    if(mode==='study') { showSelectStudyModal.value = true; }
+}
+
+// Modales simples de selección inicial
+const showSelectDoctorModal = ref(false)
+const showSelectSpecialtyModal = ref(false)
+const showSelectStudyModal = ref(false)
+
+function chooseDoctor(id){ preDoctorId.value = id; showSelectDoctorModal.value=false; showCreateModal.value=true }
+function chooseSpecialty(id){ preSpecialtyId.value = id; showSelectSpecialtyModal.value=false; showCreateModal.value=true }
+function chooseStudy(id){ preStudyTypeId.value = id; showSelectStudyModal.value=false; showCreateModal.value=true }
+
+// Filtrado de doctores por estudio
+const filteredDoctorsByStudy = computed(()=>{
+    if(!preStudyTypeId.value) return props.doctors || []
+    return (props.doctors||[]).filter(d => (d.study_types||d.studyTypes||[]).some(st => String(st.id)===String(preStudyTypeId.value)))
+})
+
+// Para doctor mode ya tenemos lista completa, pero permitimos reutilizar
+const filteredDoctorsByDoctorMode = computed(()=> props.doctors || [])
+
 
 const currentView = ref('calendar')
 const showCreateModal = ref(false)
@@ -380,6 +517,7 @@ const filters = ref({
     status: props.filters?.status || '',
     start_date: props.filters?.start_date || '',
     end_date: props.filters?.end_date || '',
+    study_type_id: props.filters?.study_type_id || '',
 })
 
 // Computed: doctores filtrados según specialty selecccionada
@@ -465,7 +603,7 @@ const newAppointmentTooltip = computed(() => {
 })
 
 const applyFilters = () => {
-    router.get('/appointments', filters.value, {
+    router.get('/appointments', { ...filters.value }, {
         preserveState: true,
         preserveScroll: true,
     })
@@ -703,6 +841,10 @@ const closeModal = () => {
     showEditModal.value = false
     selectedAppointment.value = null
     selectedDate.value = null
+    creationMode.value='default'
+    preDoctorId.value=null
+    preSpecialtyId.value=null
+    preStudyTypeId.value=null
 }
 
 const appointmentSaved = () => {
@@ -912,6 +1054,9 @@ watch(currentView, (v) => {
     // cuando cambie la vista, asegurarse que los links de paginación en el DOM se actualicen
     updatePaginationLinks()
 })
+
+// Agregar watcher para que reactive el filtro si se establece programáticamente.
+watch(()=>filters.value.study_type_id, (val,old)=>{ if(val!==old){ /* si se cambia sin evento change */ applyFilters() }})
 </script>
 
 // Nota: diagnósticos temporales removidos

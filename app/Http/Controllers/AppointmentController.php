@@ -25,8 +25,8 @@ class AppointmentController extends Controller
             return redirect()->route('login');
         }
         
-        // Base query con relaciones
-        $query = Appointment::with(['patient.user', 'doctor.user', 'specialty']);
+    // Base query con relaciones (incluye studyType)
+    $query = Appointment::with(['patient.user', 'doctor.user', 'specialty', 'studyType']);
         
         // Filtrar según el rol del usuario
         if ($user->hasRole('medico')) {
@@ -47,6 +47,10 @@ class AppointmentController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        if ($request->filled('study_type_id')) {
+            $query->where('study_type_id', $request->study_type_id);
         }
 
         if ($request->filled('start_date')) {
@@ -89,7 +93,7 @@ class AppointmentController extends Controller
         // Sólo incluir médicos activos que además tengan horarios activos configurados
         $doctors = Doctor::active()
             ->whereHas('schedules', function($q) { $q->where('is_active', true); })
-            ->with(['user', 'specialties'])
+            ->with(['user', 'specialties', 'studyTypes'])
             ->get();
         $patients = Patient::active()->with('user')->get();
         // Sólo incluir especialidades que tengan al menos un médico activo con horarios para esa misma especialidad
@@ -108,13 +112,16 @@ class AppointmentController extends Controller
                 return false;
             })->values();
 
+        $studyTypes = \App\Models\StudyType::where('is_active', true)->orderBy('name')->get(['id','name','cost']);
+
         return Inertia::render('Appointments/Index', [
             'appointments' => $appointments,
             'calendar_events' => $calendarEvents,
             'doctors' => $doctors,
             'patients' => $patients,
             'specialties' => $specialties,
-            'filters' => $request->only(['doctor_id', 'specialty_id', 'status', 'start_date', 'end_date']),
+            'study_types' => $studyTypes,
+            'filters' => $request->only(['doctor_id', 'specialty_id', 'status', 'start_date', 'end_date','study_type_id']),
             'user_permissions' => [
                 'can_create_appointments' => $user->hasRole(['administrador', 'medico', 'recepcionista']),
                 'can_edit_appointments' => $user->hasRole(['administrador', 'medico', 'recepcionista']),
@@ -291,6 +298,7 @@ class AppointmentController extends Controller
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
             'specialty_id' => 'nullable|exists:specialties,id',
+            'study_type_id' => 'nullable|exists:study_types,id',
             'appointment_date' => 'required|date',
             'duration' => 'nullable|integer|min:15|max:240',
             'notes' => 'nullable|string|max:1000',
@@ -305,11 +313,18 @@ class AppointmentController extends Controller
             return redirect()->back()->withErrors(['patient_id' => 'El paciente seleccionado está inactivo y no puede ser asignado a citas.']);
         }
 
-        $doctor = Doctor::with(['user', 'specialties'])->find($request->doctor_id);
+    $doctor = Doctor::with(['user', 'specialties','studyTypes'])->find($request->doctor_id);
         if (!$doctor || !$doctor->user->is_active) {
             return redirect()->back()->withErrors(['doctor_id' => 'El médico seleccionado está inactivo y no puede ser asignado a citas.']);
         }
 
+        // Si se especifica estudio validar que el doctor lo tenga asociado
+        if ($request->study_type_id) {
+            $hasStudy = $doctor->studyTypes()->where('study_type_id', $request->study_type_id)->exists();
+            if(!$hasStudy){
+                return redirect()->back()->withErrors(['study_type_id' => 'El médico no realiza el estudio seleccionado.']);
+            }
+        }
         // Verificar que el doctor tenga especialidades activas
         $hasActiveSpecialties = $doctor->specialties()->where('is_active', true)->exists();
         if (!$hasActiveSpecialties) {
@@ -336,6 +351,14 @@ class AppointmentController extends Controller
         $schedulesQuery = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
             ->where('is_active', true);
+
+            // Si se especifica estudio validar que el doctor lo tenga asociado
+            if ($request->study_type_id) {
+                $hasStudy = $doctor->studyTypes()->where('study_type_id', $request->study_type_id)->exists();
+                if(!$hasStudy){
+                    return redirect()->back()->withErrors(['study_type_id' => 'El médico no realiza el estudio seleccionado.']);
+                }
+            }
 
         if ($request->specialty_id) {
             $schedulesQuery->where('specialty_id', $request->specialty_id);
@@ -418,6 +441,7 @@ class AppointmentController extends Controller
             'patient_id' => $request->patient_id,
             'doctor_id' => $request->doctor_id,
             'specialty_id' => $request->specialty_id,
+            'study_type_id' => $request->study_type_id,
             'appointment_date' => $request->appointment_date,
             'duration' => $request->duration ?? 30,
             'notes' => $request->notes,
@@ -634,6 +658,7 @@ class AppointmentController extends Controller
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
             'specialty_id' => 'nullable|exists:specialties,id',
+            'study_type_id' => 'nullable|exists:study_types,id',
             'appointment_date' => 'required|date',
             'duration' => 'nullable|integer|min:15|max:240',
             'notes' => 'nullable|string|max:1000',
@@ -648,7 +673,14 @@ class AppointmentController extends Controller
             return redirect()->back()->withErrors(['patient_id' => 'El paciente seleccionado está inactivo y no puede ser asignado a citas.']);
         }
 
-        $doctor = Doctor::with(['user', 'specialties'])->find($request->doctor_id);
+    $doctor = Doctor::with(['user', 'specialties','studyTypes'])->find($request->doctor_id);
+        // Si se especifica estudio validar que el doctor lo tenga asociado
+        if ($request->study_type_id) {
+            $hasStudy = $doctor->studyTypes()->where('study_type_id', $request->study_type_id)->exists();
+            if(!$hasStudy){
+                return redirect()->back()->withErrors(['study_type_id' => 'El médico no realiza el estudio seleccionado.']);
+            }
+        }
         if (!$doctor || !$doctor->user->is_active) {
             return redirect()->back()->withErrors(['doctor_id' => 'El médico seleccionado está inactivo y no puede ser asignado a citas.']);
         }
@@ -679,6 +711,7 @@ class AppointmentController extends Controller
                 'patient_id' => $request->patient_id,
                 'doctor_id' => $request->doctor_id,
                 'specialty_id' => $request->specialty_id,
+                'study_type_id' => $request->study_type_id,
                 'appointment_date' => $request->appointment_date,
                 'duration' => $request->duration ?? 30,
                 'notes' => $request->notes,

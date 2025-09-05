@@ -15,7 +15,8 @@ class Appointment extends Model
     protected $fillable = [
         'patient_id',
         'doctor_id',
-        'specialty_id',
+    'study_type_id',
+    'specialty_id',
         'appointment_date',
         'duration',
         'consultation_fee',
@@ -28,6 +29,14 @@ class Appointment extends Model
         'prescription',
         'created_by',
     ];
+
+    /**
+     * Relación con tipo de estudio (opcional)
+     */
+    public function studyType()
+    {
+        return $this->belongsTo(StudyType::class);
+    }
 
     /**
      * Column casting
@@ -109,7 +118,7 @@ class Appointment extends Model
      */
     protected static function validateAppointmentTime($appointment)
     {
-        if (!$appointment->doctor_id || !$appointment->appointment_date) {
+    if (!$appointment->doctor_id || !$appointment->appointment_date) {
             return;
         }
 
@@ -122,7 +131,7 @@ class Appointment extends Model
         $dayOfWeek = strtolower($appointmentDate->format('l'));
         $timeSlot = $appointmentDate->format('H:i');
 
-        // Verificar que el doctor tenga horario ese día y horario que cubra la hora
+    // Verificar que el doctor tenga horario ese día y horario que cubra la hora
         // Buscar el schedule cuyo intervalo cubre el timeSlot
         $schedulesQuery = $doctor->schedules()
             ->where('day_of_week', $dayOfWeek)
@@ -151,6 +160,14 @@ class Appointment extends Model
 
         if ($timeSlot < $startTime || $timeSlot >= $endTime) {
             throw new \InvalidArgumentException("La hora {$timeSlot} está fuera del horario de atención ({$startTime} - {$endTime}).");
+        }
+
+        // Coherencia: si la cita incluye study_type_id validar que el doctor tenga ese estudio asociado
+        if ($appointment->study_type_id) {
+            $hasStudy = $doctor->studyTypes()->where('study_type_id', $appointment->study_type_id)->exists();
+            if (!$hasStudy) {
+                throw new \InvalidArgumentException('El doctor no está habilitado para realizar este estudio.');
+            }
         }
 
         // Verificar que sea un slot válido según la duración de citas

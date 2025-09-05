@@ -67,6 +67,29 @@ class MassiveTestDataSeeder extends Seeder
 
         $this->command->info('Doctores creados: ' . $doctors->count());
 
+        // Asegurar tipos de estudio base ANTES de generar citas y asociarlos a doctores
+        if (class_exists(\App\Models\StudyType::class)) {
+            $defaultStudyTypes = [
+                ['name' => 'Ecografía Abdominal', 'description' => 'Ecografía Abdominal', 'cost' => 15000, 'is_active' => true],
+                ['name' => 'Radiografía Tórax', 'description' => 'Radiografía Tórax', 'cost' => 12000, 'is_active' => true],
+                ['name' => 'Electrocardiograma', 'description' => 'Electrocardiograma', 'cost' => 8000, 'is_active' => true],
+                ['name' => 'Ergometría', 'description' => 'Ergometría', 'cost' => 25000, 'is_active' => true],
+                ['name' => 'Laboratorio Básico', 'description' => 'Laboratorio Básico', 'cost' => 6000, 'is_active' => true],
+            ];
+            foreach ($defaultStudyTypes as $st) {
+                \App\Models\StudyType::firstOrCreate(['name' => $st['name']], $st);
+            }
+            $allStudyTypes = \App\Models\StudyType::all();
+            // Asociar 2-3 tipos al azar a cada doctor si aún no tiene
+            foreach ($doctors as $doc) {
+                if ($doc->studyTypes()->count() === 0 && $allStudyTypes->count() > 0) {
+                    $attach = $allStudyTypes->shuffle()->take(min(max(2, rand(2,3)), $allStudyTypes->count()))->pluck('id')->all();
+                    $doc->studyTypes()->attach($attach);
+                }
+            }
+            $this->command->info('Tipos de estudio asegurados y asociados a doctores. Total tipos: ' . $allStudyTypes->count());
+        }
+
         // Crear horarios para cada doctor (lunes a viernes, mañana y tarde)
         $weekdays = ['monday','tuesday','wednesday','thursday','friday'];
         foreach ($doctors as $doctor) {
@@ -101,11 +124,24 @@ class MassiveTestDataSeeder extends Seeder
             $email = "patient{$i}@example.test";
             $user = User::firstOrCreate(
                 ['email' => $email],
-                ['name' => 'Paciente Test ' . $i, 'password' => bcrypt('password')]
+                [
+                    'name' => 'Paciente Test ' . $i,
+                    'password' => bcrypt('password'),
+                    'document_type' => 'cedula',
+                    'document_number' => str_pad((string)(40000000 + $i), 8, '0', STR_PAD_LEFT),
+                    'phone' => '+54911'.str_pad((string)(100000 + $i), 6, '0', STR_PAD_LEFT),
+                    'address' => 'Calle Ficticia '. $i,
+                ]
             );
             if (!$user->hasRole('paciente')) $user->assignRole('paciente');
-
-            $patient = Patient::firstOrCreate(['user_id' => $user->id]);
+            $patient = Patient::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'emergency_contact_name' => 'Contacto '.$i,
+                    'emergency_contact_phone' => '+54911'.str_pad((string)(200000 + $i), 6, '0', STR_PAD_LEFT),
+                    'insurance_number' => 'INS'.str_pad((string)$i, 6, '0', STR_PAD_LEFT)
+                ]
+            );
             $patients->push($patient);
         }
 
@@ -229,10 +265,19 @@ class MassiveTestDataSeeder extends Seeder
 
                 $patient = $patients->random();
 
+                $studyTypeId = null;
+                if (class_exists(\App\Models\StudyType::class) && rand(1,100) <= 50) {
+                    // Elegir solo entre los estudios que el doctor puede realizar para pasar validación
+                    $doctorStudyIds = $doctor->studyTypes()->pluck('study_types.id')->all();
+                    if (!empty($doctorStudyIds)) {
+                        $studyTypeId = $doctorStudyIds[array_rand($doctorStudyIds)];
+                    }
+                }
                 Appointment::create([
                     'patient_id' => $patient->id,
                     'doctor_id' => $doctor->id,
                     'specialty_id' => $specialtyId,
+                    'study_type_id' => $studyTypeId,
                     'appointment_date' => $appointmentDate,
                     'duration' => $schedule->appointment_duration ?? 30,
                     'status' => $appointmentDate->isToday() ? 'programada' : $statuses[array_rand($statuses)],

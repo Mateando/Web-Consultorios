@@ -59,8 +59,18 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Step 3: Fecha / Hora -->
-                                                        <div v-show="step === 3" class="mb-4">
+                                                        <!-- Step 3: Tipo de estudio (si aplica) -->
+                                                        <div v-show="step === 3 && hasStudyTypes" class="mb-4">
+                                                            <label for="study_type_id" class="block text-sm font-medium text-gray-700">Tipo de estudio</label>
+                                                            <select id="study_type_id" v-model="form.study_type_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                                <option value="">Seleccionar tipo de estudio</option>
+                                                                <option v-for="studyType in doctorStudyTypes" :key="studyType.id" :value="studyType.id">{{ studyType.name }}</option>
+                                                            </select>
+                                                            <div v-if="errors.study_type_id" class="mt-1 text-sm text-red-600">{{ errors.study_type_id }}</div>
+                                                        </div>
+
+                                                        <!-- Step 4: Fecha / Hora -->
+                                                        <div v-show="step === (hasStudyTypes ? 4 : 3)" class="mb-4">
                                                             <label for="appointment_date" class="block text-sm font-medium text-gray-700">Fecha</label>
                                                             <input id="appointment_date" type="date" v-model="form.appointment_date" @change="onDateChange" :min="minDate" :disabled="form.specialty_id && (loadingDays || availableDays.length === 0)" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" :class="{ 'bg-gray-100 cursor-not-allowed': form.specialty_id && availableDays.length === 0 }">
                                                             <div v-if="errors.appointment_date" class="mt-1 text-sm text-red-600">{{ errors.appointment_date }}</div>
@@ -79,8 +89,8 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Step 4: Detalles -->
-                                                        <div v-show="step === 4" class="mb-4">
+                                                        <!-- Step 5: Detalles -->
+                                                        <div v-show="step === (hasStudyTypes ? 5 : 4)" class="mb-4">
                                                             <label for="status" class="block text-sm font-medium text-gray-700">Estado</label>
                                                             <select id="status" v-model="form.status" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                                                                 <option value="programada">Programada</option>
@@ -112,8 +122,8 @@
                                                                 </div>
                                                         </div>
 
-                                                        <!-- Step 5: Resumen completo -->
-                                                        <div v-show="step === 5" class="mb-4">
+                                                        <!-- Step 6: Resumen completo -->
+                                                        <div v-show="step === 6" class="mb-4">
                                                             <div class="mt-0 border-b pb-2 mb-3">
                                                                 <h4 class="text-lg font-medium text-gray-900">Resumen de la cita</h4>
                                                             </div>
@@ -130,6 +140,10 @@
                                                             <div v-if="form.notes" class="mt-3">
                                                                 <p class="text-sm font-medium text-gray-800">Notas</p>
                                                                 <p class="text-sm text-gray-700">{{ form.notes }}</p>
+                                                            </div>
+                                                            <div class="mt-3" v-if="form.study_type_id">
+                                                                <p class="text-sm font-medium text-gray-800">Estudio</p>
+                                                                <p class="text-sm text-gray-700">{{ (doctorStudyTypes.find(s=>String(s.id)===String(form.study_type_id))||{}).name }}</p>
                                                             </div>
                                                         </div>
                             </div>
@@ -191,6 +205,9 @@ const props = defineProps({
     specialties: Array,
     selectedDate: String, // Fecha seleccionada del calendario
     initialSpecialtyId: [String, Number],
+    initialDoctorId: [String, Number],
+    initialStudyTypeId: [String, Number],
+    studyTypes: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['close', 'saved'])
@@ -213,7 +230,7 @@ let patientDebounceTimer = null
 
 // Wizard state
 const step = ref(1)
-const maxStep = 5
+const maxStep = ref(5)
 
 const patientName = computed(() => {
     const p = props.patients?.find(pt => pt.id === form.value.patient_id)
@@ -237,20 +254,31 @@ const reasonName = computed(() => {
     return r ? r.name : ''
 })
 
+const hasStudyTypes = computed(() => (props.studyTypes && props.studyTypes.length > 0))
+
+const doctorStudyTypes = computed(() => {
+    const d = (props.doctors || []).find(x => String(x.id) === String(form.value.doctor_id))
+    if (!d) return props.studyTypes || []
+    return d.study_types || props.studyTypes || []
+})
+
 const isNextDisabled = computed(() => {
     if (step.value === 1) return !form.value.patient_id
     if (step.value === 2) return !form.value.specialty_id || !form.value.doctor_id
-    if (step.value === 3) return !form.value.appointment_date || !form.value.appointment_time
+    if (hasStudyTypes.value && step.value === 3) return !form.value.study_type_id
+    const dateStep = hasStudyTypes.value ? 4 : 3
+    if (step.value === dateStep) return !form.value.appointment_date || !form.value.appointment_time
     return false
 })
 
 const canSubmit = computed(() => {
-    // final check before submit
-    return form.value.patient_id && form.value.specialty_id && form.value.doctor_id && form.value.appointment_date && form.value.appointment_time
+    if (!form.value.patient_id || !form.value.specialty_id || !form.value.doctor_id || !form.value.appointment_date || !form.value.appointment_time) return false
+    if (hasStudyTypes.value && !form.value.study_type_id) return false
+    return true
 })
 
 const nextStep = () => {
-    if (step.value < maxStep && !isNextDisabled.value) {
+    if (step.value < maxStep.value && !isNextDisabled.value) {
         step.value += 1
     }
 }
@@ -315,6 +343,7 @@ const printAppointment = () => {
                         <div><span class="label">Fecha y hora:</span><span class="value"> ${form.value.appointment_date} ${form.value.appointment_time}</span></div>
                         <div><span class="label">Duración:</span><span class="value"> ${referenceDurationText.value}</span></div>
                         <div><span class="label">Estado:</span><span class="value"> ${form.value.status}</span></div>
+                        <div><span class="label">Estudio:</span><span class="value"> ${form.value.study_type_id ? (doctorStudyTypes.value.find(s=>String(s.id)===String(form.value.study_type_id))?.name || '') : ''}</span></div>
                     </div>
 
                     ${form.value.reason ? `<div class="section"><div class="label">Motivo</div><div class="notes">${form.value.reason}</div></div>` : ''}
@@ -386,6 +415,7 @@ const form = ref({
     patient_id: '',
     doctor_id: '',
     specialty_id: '',
+    study_type_id: '',
     appointment_date: '',
     appointment_time: '',
     status: 'programada',
@@ -691,6 +721,7 @@ const submitForm = async () => {
         appointment_date: appointmentDateTime,
         reason_id: form.value.reason_id || null,
         reason: reasonName.value || null,
+        study_type_id: form.value.study_type_id || null,
     }
 
     // Remover campos que no necesitamos enviar
