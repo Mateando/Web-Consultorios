@@ -331,7 +331,7 @@
                             @saved="appointmentSaved"
                         />
                         <AppointmentModalDoctor
-                            :show="showCreateModal && creationMode==='doctor' && preDoctorId"
+                            :show="showCreateModal && creationMode==='doctor'"
                             :patients="patients"
                             :doctors="doctors"
                             :specialties="specialties"
@@ -385,21 +385,7 @@
                             @print="(appt) => { printSingle(appt) }"
                         />
 
-                        <!-- Modal selección por Médico -->
-<div v-if="showSelectDoctorModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded shadow p-5 w-full max-w-md">
-    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Médico</h3>
-    <div class="max-h-72 overflow-y-auto divide-y">
-      <button v-for="d in (doctors||[])" :key="d.id" type="button" @click="chooseDoctor(d.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
-        <span class="text-sm font-medium">{{ d.user?.name }}</span>
-        <span class="text-xs text-gray-500" v-if="(d.study_types||d.studyTypes||[]).length">Estudios: {{ (d.study_types||d.studyTypes).map(s=>s.name).join(', ') }}</span>
-      </button>
-    </div>
-    <div class="mt-4 flex justify-end gap-2">
-      <SecondaryButton type="button" @click="showSelectDoctorModal=false">Cancelar</SecondaryButton>
-    </div>
-  </div>
-</div>
+                        <!-- Modal selección por Médico eliminado: ahora se abre directamente el modal por médico con buscador interno -->
 
 <!-- Modal selección por Especialidad -->
 <div v-if="showSelectSpecialtyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -470,8 +456,7 @@ const creationMode = ref('default') // default | doctor | specialty | study
 const preDoctorId = ref(null)
 const preSpecialtyId = ref(null)
 const preStudyTypeId = ref(null)
-// Flags para los modales de selección rápida según modo
-const showSelectDoctorModal = ref(false)
+// Flags para los modales de selección rápida según modo (doctor eliminado)
 const showSelectSpecialtyModal = ref(false)
 const showSelectStudyModal = ref(false)
 // Flags principales de modales de creación / edición / detalle
@@ -494,7 +479,7 @@ const openMode = (mode) => {
     // Lógica por modo
     switch (mode) {
         case 'doctor':
-            showSelectDoctorModal.value = true
+            showCreateModal.value = true // abrir directamente modal doctor (Step 1 buscador)
             break
         case 'specialty':
             showSelectSpecialtyModal.value = true
@@ -513,12 +498,7 @@ const openMode = (mode) => {
     }
 }
 
-// Selección de doctor para modo 'doctor'
-const chooseDoctor = (id) => {
-    preDoctorId.value = id
-    showSelectDoctorModal.value = false
-    showCreateModal.value = true
-}
+// (Se eliminó la selección externa de doctor, el modal interno gestiona la búsqueda)
 
 // Selección de especialidad para modo 'specialty'
 const chooseSpecialty = (id) => {

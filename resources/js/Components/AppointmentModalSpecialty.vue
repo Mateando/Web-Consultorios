@@ -202,6 +202,10 @@ const submitForm= async()=>{
  const dateTime=`${form.value.appointment_date} ${form.value.appointment_time}:00`
  const payload={ ...form.value, appointment_date: dateTime, study_type_id: form.value.study_type_id || null }
  delete payload.appointment_time
- try { await axios.post('/appointments', payload); Swal.fire({ icon:'success', title:'Cita creada', timer:1800, showConfirmButton:false }); emit('saved') } catch(e){ errors.value=e.response?.data||{} } finally { processing.value=false }
+ try { 
+  await axios.post('/appointments', payload);
+  Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Cita creada', timer:2000, width:320, timerProgressBar:true, showConfirmButton:false, customClass:{ popup:'swal-compact-toast' } });
+  emit('saved')
+ } catch(e){ errors.value=e.response?.data||{} } finally { processing.value=false }
 }
 </script>

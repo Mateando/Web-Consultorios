@@ -62,7 +62,7 @@
                                                                             v-model="specialtyQuery"
                                                                             @focus="openSpecialtyDropdown()"
                                                                             placeholder="Buscar / seleccionar..."
-                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm pr-8"
+                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm pr-8"
                                                                         />
                                                                         <button type="button" @click="toggleSpecialtyDropdown" class="absolute inset-y-0 right-0 px-2 text-gray-500 hover:text-gray-700 focus:outline-none">
                                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
@@ -79,13 +79,13 @@
                                                                     <li
                                                                         v-for="(specialty,idx) in filteredSpecialties"
                                                                         :key="specialty.id"
-                                                                        :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedSpecialtyIndex ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50']"
+                                                                        :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedSpecialtyIndex ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50']"
                                                                         @mouseenter="focusedSpecialtyIndex=idx"
                                                                         @mouseleave="focusedSpecialtyIndex=-1"
                                                                         @click="pickSpecialty(specialty)"
                                                                     >
                                                                         <span class="truncate">{{ specialty.name }}</span>
-                                                                        <svg v-if="String(form.specialty_id)===String(specialty.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                                                                        <svg v-if="String(form.specialty_id)===String(specialty.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
                                                                     </li>
                                                                 </ul>
                                                             </div>
@@ -101,7 +101,7 @@
                                                                             @focus="openDoctorDropdown()"
                                                                             :placeholder="!form.specialty_id ? 'Seleccione primero una especialidad' : 'Buscar / seleccionar...'"
                                                                             :disabled="!form.specialty_id"
-                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm pr-8 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm pr-8 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                                         />
                                                                         <button type="button" @click="toggleDoctorDropdown" :disabled="!form.specialty_id" class="absolute inset-y-0 right-0 px-2 text-gray-500 hover:text-gray-700 focus:outline-none disabled:opacity-40">
                                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
@@ -117,13 +117,13 @@
                                                                         <li
                                                                             v-for="(doctor,idx) in filteredDoctorsComputed"
                                                                             :key="doctor.id"
-                                                                            :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedDoctorIndex ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50']"
+                                                                            :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedDoctorIndex ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50']"
                                                                             @mouseenter="focusedDoctorIndex=idx"
                                                                             @mouseleave="focusedDoctorIndex=-1"
                                                                             @click="pickDoctor(doctor)"
                                                                         >
                                                                             <span class="truncate">{{ doctor.name }} <span v-if="doctor.license_number" class="text-xs text-gray-500">- {{ doctor.license_number }}</span></span>
-                                                                            <svg v-if="String(form.doctor_id)===String(doctor.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                                                                            <svg v-if="String(form.doctor_id)===String(doctor.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
                                                                         </li>
                                                                     </ul>
                                                                 </div>
@@ -132,13 +132,18 @@
                                                             </div>
                                                         </div>
 
-                                                        <!-- Step 3: Tipo de estudio (si aplica) con buscador -->
+                                                        <!-- Step 3: Tipo de estudio (si aplica) -->
                                                         <div v-show="step === 3 && hasStudyTypes" class="mb-4">
                                                             <label for="study_type_id" class="block text-sm font-medium text-gray-700">Tipo de estudio</label>
-                                                            <input type="text" v-model="studyQuery" placeholder="Buscar estudio..." class="mt-1 mb-2 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                                                            <input
+                                                                type="text"
+                                                                v-model="studyQuery"
+                                                                placeholder="Buscar estudio..."
+                                                                class="mt-1 mb-2 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            />
                                                             <select id="study_type_id" v-model="form.study_type_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                                                                 <option value="">Seleccionar tipo de estudio</option>
-                                                                <option v-for="studyType in filteredDoctorStudyTypes" :key="studyType.id" :value="studyType.id">{{ studyType.name }}</option>
+                                                                <option v-for="st in filteredDoctorStudyTypes" :key="st.id" :value="st.id">{{ st.name }}</option>
                                                             </select>
                                                             <div v-if="errors.study_type_id" class="mt-1 text-sm text-red-600">{{ errors.study_type_id }}</div>
                                                         </div>
@@ -959,11 +964,11 @@ const submitForm = async () => {
                 position: 'top-end',
                 icon: 'success',
                 title: isEditing.value ? 'Cita actualizada' : 'Cita creada',
-                timer: 2800,
+                timer: 2000,
+                width: 320,
+                timerProgressBar: true,
                 showConfirmButton: false,
-                customClass: {
-                    popup: 'swal-compact-toast'
-                }
+                customClass: { popup: 'swal-compact-toast' }
             })
             setTimeout(() => {
                 if (printAfter.value) {
