@@ -89,7 +89,7 @@
               <p v-if="errors.specialty_id" class="mt-1 text-xs text-red-600">{{ errors.specialty_id }}</p>
             </div>
 
-            <!-- Paso 4: Estudio (si el doctor tiene) con combobox -->
+            <!-- Paso 4: Estudio (si el doctor tiene) con combobox (opcional, por defecto 'Ninguno') -->
             <div v-show="step===studyStep && showStudySelect" class="mb-4">
               <label class="block text-sm font-medium text-gray-700">Tipo de estudio</label>
               <div class="mt-1 relative" ref="studyBox"
@@ -107,6 +107,15 @@
                 </div>
                 <input type="hidden" v-model="form.study_type_id" />
                 <ul v-if="showStudyDropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md max-h-60 overflow-auto shadow-lg ring-1 ring-black/5 text-left" @mousedown.stop>
+                  <!-- Opción Ninguno -->
+                  <li
+                    :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', focusedStudyIndex===-2 ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50']"
+                    @mouseenter="focusedStudyIndex=-2"
+                    @mouseleave="focusedStudyIndex=-1"
+                    @click="pickStudyNone()">
+                    <span class="truncate">Ninguno</span>
+                    <svg v-if="!form.study_type_id" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414l2.793 2.793 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                  </li>
                   <li v-if="filteredStudyTypes.length===0" class="px-3 py-2 text-sm text-gray-500 select-none">Sin resultados</li>
                   <li v-for="(st,idx) in filteredStudyTypes" :key="st.id"
                       :class="['px-3 py-2 text-sm cursor-pointer flex items-center justify-between', idx===focusedStudyIndex ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50']"
@@ -124,10 +133,18 @@
             <!-- Paso Fecha/Hora -->
             <div v-show="step===dateStep" class="mb-4">
               <label class="block text-sm font-medium text-gray-700">Fecha</label>
-              <input type="date" v-model="form.appointment_date" @change="onDateChange" :min="minDate" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+              <input
+                type="date"
+                v-model="form.appointment_date"
+                @change="onDateChange"
+                :min="minDate"
+                :disabled="form.specialty_id && (loadingDays || availableDays.length === 0)"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                :class="{ 'bg-gray-100 cursor-not-allowed': form.specialty_id && availableDays.length === 0 }"
+              />
               <p v-if="errors.appointment_date" class="mt-1 text-xs text-red-600">{{ errors.appointment_date }}</p>
               <p v-if="availableDaysMessage" class="mt-1 text-xs text-blue-600">{{ availableDaysMessage }}</p>
-              <p v-if="form.specialty_id && availableDays.length===0 && !loadingDays" class="mt-1 text-xs text-red-600">No hay días configurados para esta especialidad.</p>
+              <p v-if="form.specialty_id && availableDays.length===0 && !loadingDays" class="mt-1 text-xs text-red-600 font-medium">⚠️ Esta especialidad no tiene horarios de atención configurados. No es posible crear citas.</p>
               <div class="mt-4">
                 <label class="block text-sm font-medium text-gray-700">Hora</label>
                 <select v-model="form.appointment_time" :disabled="loadingSlots || !form.appointment_date || (needsSpecialty && !form.specialty_id)" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
@@ -157,7 +174,7 @@
               <p>Paciente: <strong>{{ patientName }}</strong></p>
               <p>Médico: <strong>{{ doctorName }}</strong></p>
               <p v-if="form.specialty_id">Especialidad: <strong>{{ specialtyName }}</strong></p>
-              <p v-if="form.study_type_id">Estudio: <strong>{{ studyName }}</strong></p>
+              <p>Estudio: <strong>{{ studyDisplayName }}</strong></p>
               <p>Fecha: <strong>{{ form.appointment_date }}</strong> Hora: <strong>{{ form.appointment_time }}</strong></p>
               <p>Estado: <strong>{{ form.status }}</strong></p>
               <p v-if="reasonName">Motivo: <strong>{{ reasonName }}</strong></p>
@@ -182,7 +199,7 @@
               <PrimaryButton
                 v-else
                 type="submit"
-                :disabled="processing || !canSubmit"
+                :disabled="processing || (form.specialty_id && availableDays.length === 0) || !canSubmit"
                 class="w-full sm:w-auto"
               >
                 {{ processing? 'Guardando...' : 'Crear' }}
@@ -204,6 +221,8 @@ import axios from 'axios'
 import Swal from 'sweetalert2'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import SecondaryButton from '@/Components/SecondaryButton.vue'
+import { usePage } from '@inertiajs/vue3'
+import { buildAppointmentPrintContent } from '@/utils/printAppointment'
 
 const props = defineProps({
   show: Boolean,
@@ -337,14 +356,36 @@ const openStudyDropdown=()=>{ if(!showStudySelect.value) return; if(!showStudyDr
 const closeStudyDropdown=()=>{ showStudyDropdown.value=false; focusedStudyIndex.value=-1 }
 const toggleStudyDropdown=()=>{ showStudyDropdown.value? closeStudyDropdown(): openStudyDropdown() }
 watch(()=>studyQuery.value,()=>{ if(!showStudySelect.value) return; if(!showStudyDropdown.value) openStudyDropdown(); if(filteredStudyTypes.value.length>0) focusedStudyIndex.value=0; else focusedStudyIndex.value=-1 })
-const focusNextStudy=()=>{ if(!showStudyDropdown.value){ openStudyDropdown(); return } if(filteredStudyTypes.value.length===0) return; focusedStudyIndex.value=(focusedStudyIndex.value+1)%filteredStudyTypes.value.length }
-const focusPrevStudy=()=>{ if(!showStudyDropdown.value){ openStudyDropdown(); return } if(filteredStudyTypes.value.length===0) return; focusedStudyIndex.value=(focusedStudyIndex.value-1+filteredStudyTypes.value.length)%filteredStudyTypes.value.length }
-const selectFocusedStudy=()=>{ if(focusedStudyIndex.value<0) return; const s=filteredStudyTypes.value[focusedStudyIndex.value]; if(s) pickStudy(s) }
+const focusNextStudy=()=>{
+  if(!showStudyDropdown.value){ openStudyDropdown(); return }
+  const n = filteredStudyTypes.value.length
+  if(n===0) { focusedStudyIndex.value=-2; return }
+  // incluir opción 'Ninguno' como índice -2
+  const optionsCount = n + 1
+  const current = focusedStudyIndex.value === -2 ? 0 : focusedStudyIndex.value + 1
+  const next = (current + 1) % optionsCount
+  focusedStudyIndex.value = (next === 0) ? -2 : next - 1
+}
+const focusPrevStudy=()=>{
+  if(!showStudyDropdown.value){ openStudyDropdown(); return }
+  const n = filteredStudyTypes.value.length
+  if(n===0) { focusedStudyIndex.value=-2; return }
+  const optionsCount = n + 1
+  const current = focusedStudyIndex.value === -2 ? 0 : focusedStudyIndex.value + 1
+  const prev = (current - 1 + optionsCount) % optionsCount
+  focusedStudyIndex.value = (prev === 0) ? -2 : prev - 1
+}
+const selectFocusedStudy=()=>{
+  if(focusedStudyIndex.value === -2) { pickStudyNone(); return }
+  if(focusedStudyIndex.value<0) return; const s=filteredStudyTypes.value[focusedStudyIndex.value]; if(s) pickStudy(s)
+}
 const pickStudy=(s)=>{ form.value.study_type_id=s.id; studyQuery.value=s.name; closeStudyDropdown() }
+const pickStudyNone=()=>{ form.value.study_type_id=''; studyQuery.value='Ninguno'; closeStudyDropdown() }
 const handleClickOutsideStudy=(e)=>{ if(!showStudyDropdown.value) return; const el=studyBox.value; if(el && !el.contains(e.target)) closeStudyDropdown() }
 onMounted(()=> document.addEventListener('mousedown', handleClickOutsideStudy))
 onUnmounted(()=> document.removeEventListener('mousedown', handleClickOutsideStudy))
 const studyName = computed(()=> (doctor.value?.study_types||[]).find(s=> String(s.id)===String(form.value.study_type_id))?.name || '')
+const studyDisplayName = computed(()=> studyName.value || 'Ninguno')
 
 // Steps dynamic (1 doctor, 2 paciente, 3 specialty (if needed), 4 study (if any), 5 date, 6 details, 7 summary)
 const studyStep = computed(()=> showStudySelect.value ? (needsSpecialty.value ? 4 : 3) : null)
@@ -428,7 +469,32 @@ const setupDoctor=()=>{
   if(form.value.specialty_id) loadAvailableDays(form.value.specialty_id)
 }
 
-const resetForm=()=>{ step.value=1; errors.value={}; form.value={ patient_id:'', doctor_id:'', specialty_id:'', study_type_id:'', appointment_date:'', appointment_time:'', status:'programada', reason_id:'', notes:'' }; availableSlots.value=[]; doctorSearchQuery.value=''; specialtyQuery.value='' }
+const resetForm=()=>{
+  step.value=1
+  errors.value={}
+  form.value={
+    patient_id:'', doctor_id:'', specialty_id:'', study_type_id:'', appointment_date:'', appointment_time:'', status:'programada', reason_id:'', notes:''
+  }
+  // Búsqueda de paciente
+  patientQuery.value=''
+  patientResults.value=[]
+  showPatientDropdown.value=false
+  loadingPatients.value=false
+  // Búsquedas y dropdowns de doctor/especialidad/estudio
+  availableSlots.value=[]
+  doctorSearchQuery.value=''
+  showDoctorSearchDropdown.value=false
+  focusedDoctorGlobalIndex.value=-1
+  specialtyQuery.value=''
+  showSpecialtyDropdown.value=false
+  focusedSpecialtyIndex.value=-1
+  studyQuery.value='Ninguno'
+  showStudyDropdown.value=false
+  focusedStudyIndex.value=-1
+  // Días disponibles
+  availableDays.value=[]
+  loadingDays.value=false
+}
 
 // Watch for step progression auto-skip when specialty not needed
 watch(step,(val)=>{ if(val===3 && !needsSpecialty.value){ step.value = studyStep.value || dateStep.value } })
@@ -461,7 +527,45 @@ const submitForm = async()=>{
     showConfirmButton: false,
     customClass: { popup: 'swal-compact-toast' }
   })
+  // imprimir si el usuario lo tildó
+  if (printAfter.value) {
+    setTimeout(() => { try { printAppointment() } catch(e){} }, 250)
+  }
+  // notificar al padre y limpiar el modal para próxima carga
   emit('saved')
+  setTimeout(() => {
+    resetForm()
+    step.value = 1
+    errors.value = {}
+    printAfter.value = false
+  }, 250)
  } catch(e){ errors.value=e.response?.data||{} } finally { processing.value=false }
+}
+
+// Impresión usando plantilla unificada y datos de consultorio
+const printAppointment = () => {
+  const page = usePage()
+  const clinic = page.props?.clinic || null
+  const content = buildAppointmentPrintContent({
+    clinic,
+    title: 'Resumen de Cita',
+    patientName: patientName.value,
+    specialtyName: specialtyName.value,
+    doctorName: doctorName.value,
+    date: form.value.appointment_date,
+    time: form.value.appointment_time,
+    status: form.value.status,
+    durationText: '',
+    studyName: studyName.value,
+    reasonText: reasonName.value,
+    notesText: form.value.notes,
+  })
+  const win = window.open('', '_blank')
+  if (!win) return
+  win.document.open()
+  win.document.write(content)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { try { win.print(); win.close() } catch(e){} }, 250)
 }
 </script>

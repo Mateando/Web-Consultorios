@@ -341,7 +341,7 @@
                             @saved="appointmentSaved"
                         />
                         <AppointmentModalSpecialty
-                            :show="showCreateModal && creationMode==='specialty' && preSpecialtyId"
+                            :show="showCreateModal && creationMode==='specialty'"
                             :patients="patients"
                             :doctors="doctors"
                             :specialties="specialties"
@@ -351,7 +351,7 @@
                             @saved="appointmentSaved"
                         />
                         <AppointmentModalStudy
-                            :show="showCreateModal && creationMode==='study' && preStudyTypeId"
+                            :show="showCreateModal && creationMode==='study'"
                             :patients="patients"
                             :doctors="doctors"
                             :specialties="specialties"
@@ -387,37 +387,8 @@
 
                         <!-- Modal selección por Médico eliminado: ahora se abre directamente el modal por médico con buscador interno -->
 
-<!-- Modal selección por Especialidad -->
-<div v-if="showSelectSpecialtyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded shadow p-5 w-full max-w-md">
-    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Especialidad</h3>
-    <div class="max-h-72 overflow-y-auto divide-y">
-      <button v-for="s in (specialties||[])" :key="s.id" type="button" @click="chooseSpecialty(s.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
-        <span class="text-sm font-medium">{{ s.name }}</span>
-      </button>
-    </div>
-    <div class="mt-4 flex justify-end gap-2">
-      <SecondaryButton type="button" @click="showSelectSpecialtyModal=false">Cancelar</SecondaryButton>
-    </div>
-  </div>
-</div>
+<!-- (Eliminado) Modal selección por Especialidad: ahora se abre directamente el modal por especialidad con combobox interno -->
 
-<!-- Modal selección por Estudio -->
-<div v-if="showSelectStudyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded shadow p-5 w-full max-w-md">
-    <h3 class="font-semibold mb-3 text-gray-800 text-sm">Seleccionar Estudio</h3>
-    <div class="max-h-72 overflow-y-auto divide-y">
-      <button v-for="st in (study_types||[])" :key="st.id" type="button" @click="chooseStudy(st.id)" class="w-full text-left px-2 py-2 hover:bg-gray-50 flex flex-col">
-        <span class="text-sm font-medium">{{ st.name }}</span>
-        <span class="text-xs text-gray-500" v-if="st.cost">Costo: {{ st.cost }}</span>
-      </button>
-      <div v-if="!study_types || study_types.length===0" class="text-xs text-gray-500 p-2">No hay estudios activos.</div>
-    </div>
-    <div class="mt-4 flex justify-end gap-2">
-      <SecondaryButton type="button" @click="showSelectStudyModal=false">Cancelar</SecondaryButton>
-    </div>
-  </div>
-</div>
             </div>
         </div>
     </AuthenticatedLayout>
@@ -457,7 +428,7 @@ const preDoctorId = ref(null)
 const preSpecialtyId = ref(null)
 const preStudyTypeId = ref(null)
 // Flags para los modales de selección rápida según modo (doctor eliminado)
-const showSelectSpecialtyModal = ref(false)
+// Eliminado modal de selección previa de especialidad
 const showSelectStudyModal = ref(false)
 // Flags principales de modales de creación / edición / detalle
 const showCreateModal = ref(false)
@@ -482,10 +453,18 @@ const openMode = (mode) => {
             showCreateModal.value = true // abrir directamente modal doctor (Step 1 buscador)
             break
         case 'specialty':
-            showSelectSpecialtyModal.value = true
+            // Abrir directamente el modal de especialidad; si hay filtro activo úsalo
+            if (filters.value.specialty_id) {
+                preSpecialtyId.value = filters.value.specialty_id
+            }
+            showCreateModal.value = true
             break
         case 'study':
-            showSelectStudyModal.value = true
+            // abrir directamente el modal por estudio; opcionalmente usar filtro activo
+            if (filters.value.study_type_id) {
+                preStudyTypeId.value = filters.value.study_type_id
+            }
+            showCreateModal.value = true
             break
         case 'default':
         default:
@@ -500,19 +479,9 @@ const openMode = (mode) => {
 
 // (Se eliminó la selección externa de doctor, el modal interno gestiona la búsqueda)
 
-// Selección de especialidad para modo 'specialty'
-const chooseSpecialty = (id) => {
-    preSpecialtyId.value = id
-    showSelectSpecialtyModal.value = false
-    showCreateModal.value = true
-}
+// (Eliminado) selección previa por especialidad: el modal maneja el combobox en el paso 1
 
-// Selección de estudio para modo 'study'
-const chooseStudy = (id) => {
-    preStudyTypeId.value = id
-    showSelectStudyModal.value = false
-    showCreateModal.value = true
-}
+// Eliminado: selección externa de estudio. El modal maneja la selección.
 // Vista actual (calendar | list)
 const currentView = ref('calendar')
 const selectedDate = ref(null)
